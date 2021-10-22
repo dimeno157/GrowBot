@@ -7,4 +7,4 @@ Criar o arquivo **code/GrowBot/src/personal_info.h** copiar o seguinte código e
 #define WIFI_PASSWORD "Senha da rede Wifi na qual a placa ira se conectar"
 ```
 
-Substituindo os conteúdos dos textos entre aspas pelos seus respectivos valores. Em seguida salve o arquivo.
+Substituindo os conteúdos dos textos entre aspas pelos seus respectivos valores. Em seguida salve o arquivo. Essas variáveis permitem que a ESP32 se conecte tanto ao bot do telegram quanto à rede WiFi.
