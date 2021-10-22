@@ -26,7 +26,7 @@ Substituindo os conteúdos dos textos entre aspas pelos seus respectivos valores
 ## Circuitos ##
 Os circuitos foram criados separadamente no TinkerCAD.:
 
-### 1. Circuito da bomba d'água DC 12V para irrigação: ### <br>
+### 1. Circuito da bomba d'água DC 12V para irrigação: <br>
 - Componentes: <br>
     Mini Bomba D'água 12V RS-385<br>
     Resistor 1k<br>
