@@ -1,3 +1,15 @@
+# GrowBot #
+## Tutorial de criar bot no telegram ##
+TODO
+<br/>
+<br/>
+
+## Como pegar o User ID do telegram ##
+TODO 
+<br/>
+<br/>
+
+## Configurações Inicias ##
 Criar o arquivo **code/GrowBot/src/personal_info.h** copiar o seguinte código e colar no arquivo:
 
 ```c++
@@ -8,3 +20,15 @@ Criar o arquivo **code/GrowBot/src/personal_info.h** copiar o seguinte código e
 ```
 
 Substituindo os conteúdos dos textos entre aspas pelos seus respectivos valores. Em seguida salve o arquivo. Essas variáveis permitem que a ESP32 se conecte tanto ao bot do telegram quanto à rede WiFi.
+<br/>
+<br/>
+
+## Circuitos ##
+TODO
+<br/>
+<br/>
+
+## Modelos ##
+TODO
+<br/>
+<br/>
