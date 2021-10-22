@@ -1,11 +1,27 @@
-# GrowBot #
-## Tutorial de criar bot no telegram ##
-TODO
+# GrowBot
+
+## Criando o bot no Telegram
+### 1. Abra o Telegram, clique no menu no canto superior esquerdo, em seguida clique em **Contatos** e pesquise pelo contato `@BotFather`
+![BotFather](/images/telegram_bot/BotFather.jpeg)
+#### (Certifique-se que o Bot possui o símbolo de verificado ao lado do nome)
+<br>
+
+### 2. Abra uma conversa com o `@BotFather` e digite o comando e ele irá iniciar o processo de criação do novo bot.
+    /newbot
+<br>
+
+### 3. Em seguida envie o nome e o username  (o username deve obrigatoriamente terminar com "bot") e o seu bot será criado:
+![BotFather](/images/telegram_bot/name_and_username.png)
+<br>
+
+### 4. Com o Bot criado um Token é gerado, esse Token será usado mais tarde para conectar a ESP32 ao bot:
+![BotFather](/images/telegram_bot/token.png)
 <br>
 <br>
 
-## Como pegar o User ID do telegram ##
-TODO 
+----------
+## Pegando o ID de usuário no Telegram
+### 1. 
 <br>
 <br>
 
