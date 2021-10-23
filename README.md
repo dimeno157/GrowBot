@@ -21,11 +21,21 @@
 
 ----------
 ## Pegando o ID de usuário no Telegram
-### 1. 
-<br>
+### 1. Procure em **Contatos** pelo bot `@userinfobot` e inicie uma conversa:
+![UserID](/images/user_id/userinfobot.jpeg)
 <br>
 
-## Configurações Inicias ##
+### 2. Ao abrir o chat clique em **REINICIAR** ou envie a mensagem:
+    /start
+ ### e o bot irá retornar a informações sobre o seu usuário do Telegram 
+<br> 
+
+3. 
+
+
+<br>
+
+## Configurações Inicias
 Criar o arquivo **code/GrowBot/src/personal_info.h** copiar o seguinte código e colar no arquivo:
 
 ```c++
