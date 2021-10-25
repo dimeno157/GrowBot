@@ -15,6 +15,8 @@ WiFiClientSecure client;                     // Cliente para conexões seguras
 UniversalTelegramBot GrowBot(TOKEN, client); // Objeto que permite a comunicação via Telegram
 String lightCicle;                           // Ciclo de luz -> 'veg', 'flor', 'ger'
 String menu;                                 // String com o menu
+String responseKeyboardMenu;                 // String do menu no teclado
+String lightMenu;                            // String com o menu da luz
 int lightPin = 27;                           // Pino da luz
 int irrigationPin = 0;                       //TODO: Setar o pino certo // Pino da bomba de irrigação
 int lightPeriodsInHours[2];                  // Intervalos em horas de luz ligada [0] e desligada [1]
@@ -29,12 +31,13 @@ bool sentFirstMessage;                       // Booleana que indica se a mensage
 
 //-------------------------------------------------------------------------------------------------------------
 
-void handleNewMessages(int numNewMessages); // Função que lê as novas mensagens e executa o comando correspondente
-void setTimeIntervals();                    // Função que seta as variaveis que marcam periodos de acordo com o cilclo atual
-void checkAndIrrigate();                    // Função que realiza a irrigação da planta
-void checkAndChangeLightState();            // Função que checa se o estado da luz pode ser alterado e se puder altera ele
-void checkAndRaiseHours();                  // Função que checa se ja passou uma hora e acresce as variaveis de medição de tempo
-void connectInNetwork();                    //Função que connecta na rede WiFi
+void handleNewMessages(int numNewMessages);                    // Função que lê as novas mensagens e executa o comando correspondente
+void setTimeIntervals();                                       // Função que seta as variaveis que marcam periodos de acordo com o cilclo atual
+void checkAndIrrigate();                                       // Função que realiza a irrigação da planta
+void checkAndChangeLightState();                               // Função que checa se o estado da luz pode ser alterado e se puder altera ele
+void checkAndRaiseHours();                                     // Função que checa se ja passou uma hora e acresce as variaveis de medição de tempo
+void connectInNetwork();                                       // Função que connecta na rede WiFi
+void showLightOptions(String chat_id, bool sendStatus = true); // Função que mostra o menu da luz
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -43,13 +46,18 @@ void setup()
   client.setInsecure();
 
   menu = "Comandos:\n";
-  menu += "\nciclo - ciclo de luz atual.\n";
-  menu += "\nger - Muda o ciclo atual para germinação(16/8).\n";
-  menu += "\nveg - Muda o ciclo atual para vegetativo(18/6).\n";
-  menu += "\nflor - Muda o ciclo atual para floração(12/12).\n";
-  menu += "\nluz - Indica se a luz esta acesa ou apagada.\n";
-  menu += "\nliga - Liga a luz caso esteja desligada. \n";
-  menu += "\ndesliga - Desliga a luz caso esteja ligada.";
+  menu += "\n/menu - Menu inicial.\n";
+  menu += "\n/ciclo - Ciclo de luz atual.\n";
+  menu += "\n/ger - Muda o ciclo atual para germinação(16/8).\n";
+  menu += "\n/veg - Muda o ciclo atual para vegetativo(18/6).\n";
+  menu += "\n/flor - Muda o ciclo atual para floração(12/12).\n";
+  menu += "\n/luz - Abre o menu da luz.\n";
+  menu += "\n/irrigacao - Abre o menu da irrigação.\n";
+  menu += "\n/coolers - Abre o menu dos coolers.\n";
+  menu += "\n/ligaLuz - Liga a luz. \n";
+  menu += "\n/desligaLuz - Desliga.";
+
+  responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
 
   // Seta os valores iniciais das variáveis
   lightCicle = "veg";
@@ -182,19 +190,27 @@ void handleNewMessages(int numNewMessages)
       String comando = GrowBot.messages[i].text;
       if (GrowBot.messages[i].chat_id == MY_ID)
       {
-        if (comando.equalsIgnoreCase("menu"))
+        if (comando.equalsIgnoreCase("/comandos"))
         {
           GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), menu);
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("ciclo"))
+        else if (comando.equalsIgnoreCase("/menu"))
+        {
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true);
+          //------------------------------
+        }
+        else if (comando.equalsIgnoreCase("/ciclo"))
         {
           GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), lightCicle);
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("veg") && lightCicle != "veg")
+        else if (comando.equalsIgnoreCase("/irrigacao"))
+        {
+        }
+        else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
           lightCicle = "veg";
           // Se mudar e tiver ultrapassado um dos tempos, reseta o contador de tempo
@@ -206,7 +222,7 @@ void handleNewMessages(int numNewMessages)
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("flor") && lightCicle != "flor")
+        else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
         {
           lightCicle = "flor";
           // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
@@ -218,7 +234,7 @@ void handleNewMessages(int numNewMessages)
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("ger") && lightCicle != "ger")
+        else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
         {
           lightCicle = "ger";
           // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
@@ -230,42 +246,37 @@ void handleNewMessages(int numNewMessages)
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("luz"))
+        else if (comando.equalsIgnoreCase("/luz"))
         {
-          if (lightOn)
-          {
-            GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz ligada");
-          }
-          else
-          {
-            GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz desligada");
-          }
+          showLightOptions(GrowBot.messages[i].chat_id);
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("liga") && !lightOn)
+        else if (comando.equalsIgnoreCase("/ligaLuz") && !lightOn)
         {
           digitalWrite(lightPin, LOW);
           lightOn = true;
           hoursSinceLastLightChange = 0;
           timeLast = timeNow;
           GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz ligada");
+          showLightOptions(GrowBot.messages[i].chat_id, false);
 
           //------------------------------
         }
-        else if (comando.equalsIgnoreCase("desliga") && lightOn)
+        else if (comando.equalsIgnoreCase("/desligaLuz") && lightOn)
         {
           digitalWrite(lightPin, HIGH);
           lightOn = false;
           hoursSinceLastLightChange = 0;
           timeLast = timeNow;
           GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz desligada");
+          showLightOptions(GrowBot.messages[i].chat_id, false);
 
           //------------------------------
         }
         else
         {
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), menu);
+          GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, true, true);
         }
       }
       else
@@ -297,7 +308,32 @@ void connectInNetwork()
     else
     {
       sentFirstMessage = GrowBot.sendMessage(MY_ID, "--- GrowBox ativa ---");
-      GrowBot.sendMessage(MY_ID, menu);
+      GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true, true, true);
     }
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void showLightOptions(String chat_id, bool sendStatus = true)
+{
+  {
+    if (lightOn)
+    {
+      if (sendStatus)
+      {
+        GrowBot.sendMessage(String(chat_id), "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
+      }
+      lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"]]";
+    }
+    else
+    {
+      if (sendStatus)
+      {
+        GrowBot.sendMessage(String(chat_id), "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
+      }
+      lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"]]";
+    }
+    GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", lightMenu, true, true, true);
   }
 }
