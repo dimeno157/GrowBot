@@ -2,6 +2,7 @@
 #include <WiFi.h>                 // Biblioteca para conexão WiFi no ESP32
 #include <WiFiClientSecure.h>     // Biblioteca que gera uma conexão segura na rede
 #include <UniversalTelegramBot.h> // Biblioteca com as funçoes do Bot
+#include <FirebaseESP32.h>        // Biblioteca para conectar ao firebase
 #include "personal_info.h"
 
 //-------------------------------------------------------------------------------------------------------------
@@ -10,13 +11,26 @@
 #define ONE_HOUR 3600000
 
 //-------------------------------------------------------------------------------------------------------------
+class FirebaseVariables
+{
+public:
+  String lightOn = "/lightOn";
+  String lightCicle = "/lightCicle";
+  String hoursSinceLastLightChange = "/hoursSinceLastLightChange";
+};
+
+//-------------------------------------------------------------------------------------------------------------
 
 WiFiClientSecure client;                     // Cliente para conexões seguras
 UniversalTelegramBot GrowBot(TOKEN, client); // Objeto que permite a comunicação via Telegram
+FirebaseVariables firebaseVariables;         // Nomes das variaveis no firebase
+FirebaseData firebaseData;                   // Objeto usado para receber os valores do banco
 String lightCicle;                           // Ciclo de luz -> 'veg', 'flor', 'ger'
 String menu;                                 // String com o menu
 String responseKeyboardMenu;                 // String do menu no teclado
 String lightMenu;                            // String com o menu da luz
+String parentPath;                           // Caminho das variaveis no banco
+int childPathsSize = 3;                      // Numero de variaveis no firebase
 int lightPin = 27;                           // Pino da luz
 int irrigationPin = 0;                       //TODO: Setar o pino certo // Pino da bomba de irrigação
 int lightPeriodsInHours[2];                  // Intervalos em horas de luz ligada [0] e desligada [1]
@@ -28,6 +42,10 @@ unsigned int hoursSinceLastLightChange;      // Numero de horas que se passaram 
 unsigned int hoursSinceLastIrrigation;       // Numero de horas que se passaram des de a ultima irrigacao
 bool lightOn;                                // Indica se a luz está ligada
 bool sentFirstMessage;                       // Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
+bool firebaseBegin;                          // Variavel que indica que o firebase foi inciado
+String childPaths[3] = {firebaseVariables.lightOn,
+                        firebaseVariables.lightCicle,
+                        firebaseVariables.hoursSinceLastLightChange}; // Array com as variaveis no firebase
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -38,6 +56,11 @@ void checkAndChangeLightState();                               // Função que c
 void checkAndRaiseHours();                                     // Função que checa se ja passou uma hora e acresce as variaveis de medição de tempo
 void connectInNetwork();                                       // Função que connecta na rede WiFi
 void showLightOptions(String chat_id, bool sendStatus = true); // Função que mostra o menu da luz
+void firebaseStreamCallback(MultiPathStreamData stream);
+void handleVariableChange(String path, String value);
+void firebaseStreamTimeoutCallback(bool timeout);
+void changeLightState(bool turnOff);
+void changeLightCicle(String cicle);
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -59,6 +82,15 @@ void setup()
 
   responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
 
+  // Initialize the library with the Firebase authen
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  // Set AP reconnection in setup()
+  Firebase.reconnectWiFi(true);
+  //6. Optional, set number of error retry
+  Firebase.setMaxRetry(firebaseData, 3);
+  //7. Optional, set number of error resumable queues
+  Firebase.setMaxErrorQueue(firebaseData, 30);
+
   // Seta os valores iniciais das variáveis
   lightCicle = "veg";
   timeLast = 0;
@@ -68,6 +100,8 @@ void setup()
   irrigationTimeInSeconds = 5;
   lightOn = true;
   sentFirstMessage = false;
+  firebaseBegin = false;
+  parentPath = "/grow-bot-420-default-rtdb/variables";
 
   setTimeIntervals();
 
@@ -192,20 +226,15 @@ void handleNewMessages(int numNewMessages)
       {
         if (comando.equalsIgnoreCase("/comandos"))
         {
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), menu);
-
-          //------------------------------
+          GrowBot.sendMessage(String(MY_ID), menu);
         }
         else if (comando.equalsIgnoreCase("/menu"))
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
-          //------------------------------
+          GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
         {
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), lightCicle);
-
-          //------------------------------
+          GrowBot.sendMessage(String(MY_ID), lightCicle);
         }
         else if (comando.equalsIgnoreCase("/irrigacao"))
         {
@@ -213,70 +242,29 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
-          lightCicle = "veg";
-          setTimeIntervals();
-          // Se mudar e tiver ultrapassado um dos tempos, reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Vegetativo(18/6)");
-
-          //------------------------------
+          changeLightCicle("veg");
         }
         else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
         {
-          lightCicle = "flor";
-          setTimeIntervals();
-          // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Floração(12/12)");
-
-          //------------------------------
+          changeLightCicle("flor");
         }
         else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
         {
-          lightCicle = "ger";
-          setTimeIntervals();
-          // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Germinação(16/8)");
-
-          //------------------------------
+          changeLightCicle("ger");
         }
         else if (comando.equalsIgnoreCase("/luz"))
         {
-          showLightOptions(GrowBot.messages[i].chat_id);
-
-          //------------------------------
+          showLightOptions(MY_ID);
         }
         else if (comando.equalsIgnoreCase("/ligaLuz") && !lightOn)
         {
-          digitalWrite(lightPin, LOW);
-          lightOn = true;
-          hoursSinceLastLightChange = 0;
-          timeLast = timeNow;
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz ligada");
-          showLightOptions(GrowBot.messages[i].chat_id, false);
-
-          //------------------------------
+          changeLightState(false);
+          showLightOptions(MY_ID, false);
         }
         else if (comando.equalsIgnoreCase("/desligaLuz") && lightOn)
         {
-          digitalWrite(lightPin, HIGH);
-          lightOn = false;
-          hoursSinceLastLightChange = 0;
-          timeLast = timeNow;
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz desligada");
-          showLightOptions(GrowBot.messages[i].chat_id, false);
-
-          //------------------------------
+          changeLightState(true);
+          showLightOptions(MY_ID, false);
         }
         else
         {
@@ -314,12 +302,67 @@ void connectInNetwork()
       sentFirstMessage = GrowBot.sendMessage(MY_ID, "--- GrowBox ativa ---");
       GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true, true, true);
     }
+    if (!firebaseBegin)
+    {
+      Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+      Firebase.reconnectWiFi(true);
+      Firebase.beginMultiPathStream(firebaseData, parentPath, childPaths, childPathsSize);
+      Firebase.setMultiPathStreamCallback(firebaseData, firebaseStreamCallback, firebaseStreamTimeoutCallback);
+      firebaseBegin = true;
+    }
   }
 }
 
 //-------------------------------------------------------------------------------------------------------------
 
-void showLightOptions(String chat_id, bool sendStatus = true)
+void changeLightState(bool turnOff)
+{
+  if (turnOff)
+  {
+    digitalWrite(lightPin, HIGH);
+    lightOn = false;
+    GrowBot.sendMessage(String(MY_ID), "Luz desligada");
+  }
+  else
+  {
+    digitalWrite(lightPin, LOW);
+    lightOn = true;
+    GrowBot.sendMessage(MY_ID, "Luz ligada");
+  }
+  hoursSinceLastLightChange = 0;
+  timeLast = timeNow;
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void changeLightCicle(String cicle)
+{
+  if (cicle == "veg")
+  {
+    lightCicle = "veg";
+    GrowBot.sendMessage(String(MY_ID), "Ciclo atual: Vegetativo(18/6)");
+  }
+  else if (cicle == "ger")
+  {
+    lightCicle = "ger";
+    GrowBot.sendMessage(String(MY_ID), "Ciclo atual: Germinação(16/8)");
+  }
+  else if (cicle == "flor")
+  {
+    lightCicle = "flor";
+    GrowBot.sendMessage(String(MY_ID), "Ciclo atual: Floração(12/12)");
+  }
+  setTimeIntervals();
+  // Se mudar e tiver ultrapassado um dos tempos, reseta o contador de tempo
+  if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
+  {
+    timeLast = timeNow;
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void showLightOptions(String chat_id, bool sendStatus /*=true*/)
 {
   {
     if (lightOn)
@@ -339,5 +382,55 @@ void showLightOptions(String chat_id, bool sendStatus = true)
       lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"]]";
     }
     GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", lightMenu, true, true, true);
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void firebaseStreamCallback(MultiPathStreamData stream)
+{
+  size_t numChild = sizeof(childPaths) / sizeof(childPaths[0]);
+
+  for (size_t i = 0; i < numChild; i++)
+  {
+    if (stream.get(childPaths[i]))
+    {
+      handleVariableChange(stream.dataPath, stream.value);
+    }
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void firebaseStreamTimeoutCallback(bool timeout)
+{
+  if (timeout)
+  {
+    connectInNetwork();
+  }
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void handleVariableChange(String path, String value)
+{
+  if (path == firebaseVariables.lightOn)
+  {
+    if (value == "true")
+    {
+      changeLightState(false);
+    }
+    else if (value == "false")
+    {
+      changeLightState(true);
+    }
+  }
+  else if (path == firebaseVariables.lightCicle)
+  {
+    changeLightCicle(value);
+  }
+  else if (path == firebaseVariables.hoursSinceLastLightChange)
+  {
+    // TODO: Mudar
   }
 }
