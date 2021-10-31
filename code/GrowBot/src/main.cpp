@@ -198,7 +198,7 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/menu"))
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma opção ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
           //------------------------------
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
@@ -280,7 +280,7 @@ void handleNewMessages(int numNewMessages)
         }
         else
         {
-          GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, false, true);
         }
       }
       else
@@ -319,7 +319,7 @@ void connectInNetwork()
 
 //-------------------------------------------------------------------------------------------------------------
 
-void showLightOptions(String chat_id, bool sendStatus = true)
+void showLightOptions(String chat_id, bool sendStatus)
 {
   {
     if (lightOn)
@@ -328,7 +328,7 @@ void showLightOptions(String chat_id, bool sendStatus = true)
       {
         GrowBot.sendMessage(String(chat_id), "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
       }
-      lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"]]";
+      lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
     }
     else
     {
@@ -336,7 +336,7 @@ void showLightOptions(String chat_id, bool sendStatus = true)
       {
         GrowBot.sendMessage(String(chat_id), "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
       }
-      lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"]]";
+      lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
     }
     GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", lightMenu, true, true, true);
   }
