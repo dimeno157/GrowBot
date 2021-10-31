@@ -198,7 +198,7 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/menu"))
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
           //------------------------------
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
@@ -209,10 +209,12 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/irrigacao"))
         {
+          //TODO: Fazer irrigação
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
           lightCicle = "veg";
+          setTimeIntervals();
           // Se mudar e tiver ultrapassado um dos tempos, reseta o contador de tempo
           if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
           {
@@ -225,6 +227,7 @@ void handleNewMessages(int numNewMessages)
         else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
         {
           lightCicle = "flor";
+          setTimeIntervals();
           // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
           if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
           {
@@ -237,6 +240,7 @@ void handleNewMessages(int numNewMessages)
         else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
         {
           lightCicle = "ger";
+          setTimeIntervals();
           // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
           if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
           {
