@@ -40,6 +40,8 @@ void checkAndRaiseHours();                                     // Função que c
 void connectInNetwork();                                       // Função que connecta na rede WiFi
 void showLightOptions(String chat_id, bool sendStatus = true); // Função que mostra o menu da luz
 void showIrrigationOptions(String chat_id);                    // Função que mostra o menu da irrigação
+void changeLightState(bool turnOff);                           // Função que muda o estado da luz
+void changeLightCicle(String chat_id, String cicle);           // Função que muda o fotoperíodo
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -59,10 +61,7 @@ void setup()
   menu += "\n/coolers - Abre o menu dos coolers.\n";
   menu += "\n/ligaLuz - Liga a luz. \n";
   menu += "\n/desligaLuz - Desliga.";
-
   responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
-
-  // Seta os valores iniciais das variáveis
   lightCicle = "veg";
   timeLast = 0;
   timeNow = 0;
@@ -85,8 +84,6 @@ void setup()
 
   connectInNetwork();
 }
-
-//-------------------------------------------------------------------------------------------------------------
 
 void loop()
 {
@@ -132,19 +129,19 @@ void setTimeIntervals()
   {
     lightPeriodsInHours[0] = 16;
     lightPeriodsInHours[1] = 8;
-    irrigationIntervalInHours = 48;
+    irrigationIntervalInHours = 5 * 24;
   }
   else if (lightCicle.equalsIgnoreCase("flor"))
   {
     lightPeriodsInHours[0] = 12;
     lightPeriodsInHours[1] = 12;
-    irrigationIntervalInHours = 48;
+    irrigationIntervalInHours = 5 * 24;
   }
   else
   {
     lightPeriodsInHours[0] = 18;
     lightPeriodsInHours[1] = 6;
-    irrigationIntervalInHours = 48;
+    irrigationIntervalInHours = 5 * 24;
   }
 }
 
@@ -198,105 +195,60 @@ void handleNewMessages(int numNewMessages)
       {
         if (comando.equalsIgnoreCase("/comandos"))
         {
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), menu);
-
-          //------------------------------
+          GrowBot.sendMessage(GrowBot.messages[i].chat_id, menu);
         }
         else if (comando.equalsIgnoreCase("/menu"))
         {
           GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma opção ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
-          //------------------------------
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
         {
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), lightCicle);
-
-          //------------------------------
+          GrowBot.sendMessage(GrowBot.messages[i].chat_id, lightCicle);
         }
         else if (comando.equalsIgnoreCase("/irrigacao"))
         {
-          showIrrigationOptions(MY_ID);
+          showIrrigationOptions(GrowBot.messages[i].chat_id);
         }
         else if (comando.equalsIgnoreCase("/irrigado"))
         {
           hoursSinceLastIrrigation = 0;
           irrigationMessageSent = false;
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma opção ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
-          lightCicle = "veg";
-          setTimeIntervals();
-          // Se mudar e tiver ultrapassado um dos tempos, reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Vegetativo(18/6)");
-
-          //------------------------------
+          changeLightCicle(GrowBot.messages[i].chat_id, "veg");
         }
         else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
         {
-          lightCicle = "flor";
-          setTimeIntervals();
-          // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Floração(12/12)");
-
-          //------------------------------
+          changeLightCicle(GrowBot.messages[i].chat_id, "flor");
         }
         else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
         {
-          lightCicle = "ger";
-          setTimeIntervals();
-          // Se mudar e tiver utrapassado um dos tempos reseta o contador de tempo
-          if ((!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1]) || (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0]))
-          {
-            timeLast = timeNow;
-          }
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Ciclo atual: Germinação(16/8)");
-
-          //------------------------------
+          changeLightCicle(GrowBot.messages[i].chat_id, "ger");
         }
         else if (comando.equalsIgnoreCase("/luz"))
         {
           showLightOptions(GrowBot.messages[i].chat_id);
-
-          //------------------------------
         }
         else if (comando.equalsIgnoreCase("/ligaLuz") && !lightOn)
         {
-          digitalWrite(lightPin, LOW);
-          lightOn = true;
-          hoursSinceLastLightChange = 0;
-          timeLast = timeNow;
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz ligada");
+          changeLightState(false);
           showLightOptions(GrowBot.messages[i].chat_id, false);
-
-          //------------------------------
         }
         else if (comando.equalsIgnoreCase("/desligaLuz") && lightOn)
         {
-          digitalWrite(lightPin, HIGH);
-          lightOn = false;
-          hoursSinceLastLightChange = 0;
-          timeLast = timeNow;
-          GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "Luz desligada");
+          changeLightState(true);
           showLightOptions(GrowBot.messages[i].chat_id, false);
-
-          //------------------------------
         }
         else
         {
-          GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, false, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, false, true);
         }
       }
       else
       {
-        GrowBot.sendMessage(String(GrowBot.messages[i].chat_id), "blez...");
+        GrowBot.sendMessage(GrowBot.messages[i].chat_id, "blez...");
       }
     }
   }
@@ -360,3 +312,46 @@ void showIrrigationOptions(String chat_id)
   GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(hoursSinceLastIrrigation) + " horas ou aproximadamente " + String(int(hoursSinceLastIrrigation / 24)) + " dias.");
   GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", "[[\"/irrigado\"],[\"/menu\"]]", true, true, true);
 }
+
+//-------------------------------------------------------------------------------------------------------------
+
+void changeLightState(bool turnOff)
+{
+  if (turnOff)
+  {
+    digitalWrite(lightPin, HIGH);
+    lightOn = false;
+    GrowBot.sendMessage(String(MY_ID), "Luz desligada");
+  }
+  else
+  {
+    digitalWrite(lightPin, LOW);
+    lightOn = true;
+    GrowBot.sendMessage(MY_ID, "Luz ligada");
+  }
+  hoursSinceLastLightChange = 0;
+}
+
+//-------------------------------------------------------------------------------------------------------------
+
+void changeLightCicle(String chat_id, String cicle)
+{
+  if (cicle == "veg")
+  {
+    lightCicle = "veg";
+    GrowBot.sendMessage(chat_id, "Ciclo atual: Vegetativo(18/6)");
+  }
+  else if (cicle == "ger")
+  {
+    lightCicle = "ger";
+    GrowBot.sendMessage(chat_id, "Ciclo atual: Germinação(16/8)");
+  }
+  else if (cicle == "flor")
+  {
+    lightCicle = "flor";
+    GrowBot.sendMessage(chat_id, "Ciclo atual: Floração(12/12)");
+  }
+  setTimeIntervals();
+}
+
+//-------------------------------------------------------------------------------------------------------------
