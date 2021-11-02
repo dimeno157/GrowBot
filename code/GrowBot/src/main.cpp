@@ -213,7 +213,7 @@ void handleNewMessages(int numNewMessages)
         {
           hoursSinceLastIrrigation = 0;
           irrigationMessageSent = false;
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma opção ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, String("Irrigação registrada, ") + String(int(irrigationIntervalInHours / 24)) + String(" dias restantes até a próxima irrigação."), "", responseKeyboardMenu, true, true);
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
