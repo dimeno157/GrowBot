@@ -309,7 +309,7 @@ void showLightOptions(String chat_id, bool sendStatus)
 
 void showIrrigationOptions(String chat_id)
 {
-  GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(hoursSinceLastIrrigation) + " horas ou aproximadamente " + String(int(hoursSinceLastIrrigation / 24)) + " dias.");
+  GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.");
   GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", "[[\"/irrigado\"],[\"/menu\"]]", true, true, true);
 }
 
