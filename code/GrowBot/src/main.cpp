@@ -18,7 +18,7 @@ String menu;                                 // String com o menu
 String responseKeyboardMenu;                 // String do menu no teclado
 String lightMenu;                            // String com o menu da luz
 int lightPin = 27;                           // Pino da luz
-int irrigationPin = 0;                       //TODO: Setar o pino certo // Pino da bomba de irrigação
+int irrigationPin = 26;                      //TODO: Setar o pino certo // Pino da bomba de irrigação
 int lightPeriodsInHours[2];                  // Intervalos em horas de luz ligada [0] e desligada [1]
 int irrigationIntervalInHours;               // Intervalo em horas entre regas
 int irrigationTimeInSeconds;                 // Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
@@ -67,7 +67,7 @@ void setup()
   timeNow = 0;
   hoursSinceLastLightChange = 0;
   hoursSinceLastIrrigation = 0;
-  irrigationTimeInSeconds = 5;
+  irrigationTimeInSeconds = 20;
   lightOn = true;
   sentFirstMessage = false;
   irrigationMessageSent = false;
