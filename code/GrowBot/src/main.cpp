@@ -31,7 +31,7 @@ unsigned int hoursSinceLastIrrigation;  // Numero de horas que se passaram des d
 bool lightOn;                           // Indica se a luz está ligada
 bool sentFirstMessage;                  // Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
 bool irrigationMessageSent;             // Flag que indica se o lembrete de irrigação ja foi enviado
-bool autoIrrigate;
+bool autoIrrigate;                      // Flaq que indica se a irrigação automatica está ligada ou desligada
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -121,6 +121,8 @@ void setup()
 
   connectInNetwork();
 }
+
+//-----------------------
 
 void loop()
 {
