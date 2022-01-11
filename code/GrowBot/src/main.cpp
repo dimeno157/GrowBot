@@ -17,31 +17,62 @@ String lightCicle;                           // Ciclo de luz -> 'veg', 'flor', '
 String menu;                                 // String com o menu
 String responseKeyboardMenu;                 // String do menu no teclado
 String lightMenu;                            // String com o menu da luz
-int lightPin = 27;                           // Pino da luz
-int irrigationPin = 26;                      //TODO: Setar o pino certo // Pino da bomba de irrigação
-int lightPeriodsInHours[2];                  // Intervalos em horas de luz ligada [0] e desligada [1]
-int irrigationIntervalInHours;               // Intervalo em horas entre regas
-int irrigationTimeInSeconds;                 // Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
-unsigned long timeLast;                      // Tempo em milissegundos des de a ultima medição
-unsigned long timeNow;                       // Tempo em milissegundos medido agora
-unsigned int hoursSinceLastLightChange;      // Numero de horas que se passaram des de a ultima mudança na luz
-unsigned int hoursSinceLastIrrigation;       // Numero de horas que se passaram des de a ultima irrigacao
-bool lightOn;                                // Indica se a luz está ligada
-bool sentFirstMessage;                       // Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
-bool irrigationMessageSent;                  // Flag que indica se o lembrete de irrigação ja foi enviado
+String irrigationMenu;                       // String com o enu da irrigação
+String optionsMessage;
+int lightPin = 27;                      // Pino da luz
+int irrigationPin = 26;                 // Pino da bomba de irrigação
+int lightPeriodsInHours[2];             // Intervalos em horas de luz ligada [0] e desligada [1]
+int irrigationIntervalInHours;          // Intervalo em horas entre regas
+int irrigationTimeInSeconds;            // Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
+unsigned long timeLast;                 // Tempo em milissegundos des de a ultima medição
+unsigned long timeNow;                  // Tempo em milissegundos medido agora
+unsigned int hoursSinceLastLightChange; // Numero de horas que se passaram des de a ultima mudança na luz
+unsigned int hoursSinceLastIrrigation;  // Numero de horas que se passaram des de a ultima irrigacao
+bool lightOn;                           // Indica se a luz está ligada
+bool sentFirstMessage;                  // Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
+bool irrigationMessageSent;             // Flag que indica se o lembrete de irrigação ja foi enviado
+bool autoIrrigate;
 
 //-------------------------------------------------------------------------------------------------------------
 
-void handleNewMessages(int numNewMessages);                    // Função que lê as novas mensagens e executa o comando correspondente
-void setTimeIntervals();                                       // Função que seta as variaveis que marcam periodos de acordo com o cilclo atual
-void checkAndIrrigate();                                       // Função que realiza a irrigação da planta
-void checkAndChangeLightState();                               // Função que checa se o estado da luz pode ser alterado e se puder altera ele
-void checkAndRaiseHours();                                     // Função que checa se ja passou uma hora e acresce as variaveis de medição de tempo
-void connectInNetwork();                                       // Função que connecta na rede WiFi
-void showLightOptions(String chat_id, bool sendStatus = true); // Função que mostra o menu da luz
-void showIrrigationOptions(String chat_id);                    // Função que mostra o menu da irrigação
-void changeLightState(bool turnOff);                           // Função que muda o estado da luz
-void changeLightCicle(String chat_id, String cicle);           // Função que muda o fotoperíodo
+// Lê as novas mensagens e executa o comando correspondente.
+void handleNewMessages(int numNewMessages);
+
+// Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o cilclo atual.
+void setTimeIntervals();
+
+// Realiza a irrigação.
+void checkAndIrrigate();
+
+// Checa e altera (caso seja necessário) o estado da luz.
+void checkAndChangeLightState();
+
+// Checa se ja passou uma hora e acresce as variaveis de medição de tempo.
+void checkAndRaiseHours();
+
+// Connecta na rede WiFi.
+void connectInNetwork();
+
+// Envia o menu da luz.
+void showLightOptions(String chat_id, bool sendStatus = true);
+
+// Envia o menu da irrigação.
+void showIrrigationOptions(String chat_id, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
+
+// Muda o estado da luz.
+void changeLightState(bool turnOff);
+
+// Muda o ciclo.
+void changeLightCicle(String chat_id, String cicle);
+
+// Realiza uma irrigação.
+void irrigate(String chat_id);
+
+// Liga ou desliga a irrigação automatica
+void changeAutoIrrigationState(String chat_id, bool turnOff);
+
+// Registra a irrigação.
+void registerIrrigation(String chat_id);
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -50,35 +81,41 @@ void setup()
   client.setInsecure();
 
   menu = "Comandos:\n";
-  menu += "\n/menu - Menu inicial.\n";
-  menu += "\n/ciclo - Ciclo de luz atual.\n";
-  menu += "\n/ger - Muda o ciclo atual para germinação(16/8).\n";
-  menu += "\n/veg - Muda o ciclo atual para vegetativo(18/6).\n";
-  menu += "\n/flor - Muda o ciclo atual para floração(12/12).\n";
-  menu += "\n/luz - Abre o menu da luz.\n";
-  menu += "\n/irrigacao - Abre o menu da irrigação.\n";
-  menu += "\n/irrigado - Registra o momento da irrigação para enviar o lembrete no intervalo correto.";
-  menu += "\n/coolers - Abre o menu dos coolers.\n";
-  menu += "\n/ligaLuz - Liga a luz. \n";
-  menu += "\n/desligaLuz - Desliga.";
+  menu += "\n /menu - Menu inicial.\n";
+  menu += "\n /luz - Abre o menu da luz.\n";
+  menu += "\n /ciclo - Ciclo de luz atual.\n";
+  menu += "\n /ger - Muda o ciclo atual para germinação(16/8).\n";
+  menu += "\n /veg - Muda o ciclo atual para vegetativo(18/6).\n";
+  menu += "\n /flor - Muda o ciclo atual para floração(12/12).\n";
+  menu += "\n /irrigacao - Abre o menu da irrigação.\n";
+  menu += "\n /irrigar - Realiza uma irrigação.\n";
+  menu += "\n /irrigado - Registra o momento da irrigação para enviar o lembrete no intervalo correto.\n";
+  menu += "\n /coolers - Abre o menu dos coolers.\n";
+  menu += "\n /ligaLuz - Liga a luz. \n";
+  menu += "\n /desligaLuz - Desliga.\n";
+  menu += "\n /ligaAutoIrrigacao - Liga a irrigação automática.\n";
+  menu += "\n /desligaAutoIrrigacao - Desiga a irrigação automática.\n";
+
+  optionsMessage = "Escolha uma das opções do /menu ou envie /comandos para mostrar todos os comandos.";
   responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
   lightCicle = "veg";
   timeLast = 0;
   timeNow = 0;
   hoursSinceLastLightChange = 0;
   hoursSinceLastIrrigation = 0;
-  irrigationTimeInSeconds = 20;
+  irrigationTimeInSeconds = 15;
   lightOn = true;
   sentFirstMessage = false;
   irrigationMessageSent = false;
+  autoIrrigate = false;
 
   setTimeIntervals();
 
-  // Seta o pino da luz como saida e liga ele (O relé da luz liga em low)
+  // Seta o pino da luz como saida e liga (O relé da luz liga em low)
   pinMode(lightPin, OUTPUT);
   digitalWrite(lightPin, LOW);
 
-  // Seta o pino da irrigação como saida e desliga ele
+  // Seta o pino da irrigação como saida e desliga
   pinMode(irrigationPin, OUTPUT);
   digitalWrite(irrigationPin, LOW);
 
@@ -97,13 +134,10 @@ void loop()
     int numNewMessages = GrowBot.getUpdates(GrowBot.last_message_received + 1);
     handleNewMessages(numNewMessages);
   }
-  // Coloca os valores corretos nas variáveis de tempo
+
   setTimeIntervals();
-  // Checa se ja passou uma hora pra acrescer as variaveis de medição
   checkAndRaiseHours();
-  // Checa se o estado da luz pode ser mudado e muda em caso positivo
   checkAndChangeLightState();
-  // Checa se ja pode irrigar e irriga em caso positivo
   checkAndIrrigate();
 }
 
@@ -111,17 +145,21 @@ void loop()
 
 void checkAndRaiseHours()
 {
-  // Checa se ja passou uma hora des de a ultima medição de tempo
   timeNow = millis();
+  if (timeLast > timeNow)
+  {
+    timeLast = timeNow;
+  }
   if (timeNow - timeLast >= ONE_HOUR)
   {
     hoursSinceLastLightChange += 1;
     hoursSinceLastIrrigation += 1;
     timeLast = timeNow;
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void setTimeIntervals()
 {
@@ -143,24 +181,29 @@ void setTimeIntervals()
     lightPeriodsInHours[1] = 6;
     irrigationIntervalInHours = 5 * 24;
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void checkAndIrrigate()
 {
-  if (hoursSinceLastIrrigation >= irrigationIntervalInHours && !irrigationMessageSent)
+  if (hoursSinceLastIrrigation >= irrigationIntervalInHours)
   {
-    GrowBot.sendMessage(MY_ID, String("Já está na hora de irrigar.\nA ultima irrigação foi ha ") + String(hoursSinceLastIrrigation / 24) + String(" dias."));
-    irrigationMessageSent = true;
-    // digitalWrite(irrigationPin, HIGH);
-    // delay(irrigationTimeInSeconds * 1000);
-    // digitalWrite(irrigationPin, LOW);
-    // hoursSinceLastIrrigation = 0;
+    if (autoIrrigate)
+    {
+      irrigate(MY_ID);
+    }
+    else if (!irrigationMessageSent)
+    {
+      showIrrigationOptions(MY_ID, true, false);
+      irrigationMessageSent = true;
+    }
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void checkAndChangeLightState()
 {
@@ -180,9 +223,10 @@ void checkAndChangeLightState()
     lightOn = false;
     hoursSinceLastLightChange = 0;
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void handleNewMessages(int numNewMessages)
 {
@@ -199,7 +243,7 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/menu"))
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma opção ou envie /comandos para mostrar todos os comandos", "", responseKeyboardMenu, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, optionsMessage, "", responseKeyboardMenu, true, true);
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
         {
@@ -207,13 +251,27 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/irrigacao"))
         {
-          showIrrigationOptions(GrowBot.messages[i].chat_id);
+          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
+        }
+        else if (comando.equalsIgnoreCase("/irrigar"))
+        {
+          irrigate(GrowBot.messages[i].chat_id);
+          showIrrigationOptions(GrowBot.messages[i].chat_id, false);
         }
         else if (comando.equalsIgnoreCase("/irrigado"))
         {
-          hoursSinceLastIrrigation = 0;
-          irrigationMessageSent = false;
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, String("Irrigação registrada, ") + String(int(irrigationIntervalInHours / 24)) + String(" dias restantes até a próxima irrigação."), "", responseKeyboardMenu, true, true);
+          registerIrrigation(GrowBot.messages[i].chat_id);
+          showIrrigationOptions(GrowBot.messages[i].chat_id, false);
+        }
+        else if (comando.equalsIgnoreCase("/ligaAutoIrrigacao"))
+        {
+          changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
+          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
+        }
+        else if (comando.equalsIgnoreCase("/desligaAutoIrrigacao"))
+        {
+          changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
+          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
@@ -252,9 +310,10 @@ void handleNewMessages(int numNewMessages)
       }
     }
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void connectInNetwork()
 {
@@ -278,42 +337,58 @@ void connectInNetwork()
       GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true, true, true);
     }
   }
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void showLightOptions(String chat_id, bool sendStatus)
 {
+  if (lightOn)
   {
-    if (lightOn)
+    if (sendStatus)
     {
-      if (sendStatus)
-      {
-        GrowBot.sendMessage(chat_id, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
-      }
-      lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
+      GrowBot.sendMessage(chat_id, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
     }
-    else
-    {
-      if (sendStatus)
-      {
-        GrowBot.sendMessage(chat_id, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
-      }
-      lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
-    }
-    GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", lightMenu, true, true, true);
+    lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
   }
+  else
+  {
+    if (sendStatus)
+    {
+      GrowBot.sendMessage(chat_id, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
+    }
+    lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
+  }
+  GrowBot.sendMessageWithReplyKeyboard(chat_id, optionsMessage, "", lightMenu, true, true, true);
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
-void showIrrigationOptions(String chat_id)
+void showIrrigationOptions(String chat_id, bool lastIrrigationInfo, bool nextIrrigationInfo)
 {
-  GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.");
-  GrowBot.sendMessageWithReplyKeyboard(chat_id, "Escolha uma das opções ou envie /comandos para mostrar todos os comandos", "", "[[\"/irrigado\"],[\"/menu\"]]", true, true, true);
+  if (lastIrrigationInfo)
+  {
+    GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.");
+  }
+  if (nextIrrigationInfo)
+  {
+    GrowBot.sendMessage(chat_id, String(int((irrigationIntervalInHours - hoursSinceLastIrrigation) / 24)) + " dias e " + String(int((irrigationIntervalInHours - hoursSinceLastIrrigation) % 24)) + " horas restantes até a próxima irrigação.");
+  }
+  if (autoIrrigate)
+  {
+    irrigationMenu = "[[\"/irrigado\"],[\"/irrigar\"],[\"/desligaAutoIrrigacao\"],[\"/menu\"]]";
+  }
+  else
+  {
+    irrigationMenu = "[[\"/irrigado\"],[\"/irrigar\"],[\"/ligaAutoIrrigacao\"],[\"/menu\"]]";
+  }
+  GrowBot.sendMessageWithReplyKeyboard(chat_id, optionsMessage, "", irrigationMenu, true, true, true);
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
 
 void changeLightState(bool turnOff)
 {
@@ -321,18 +396,36 @@ void changeLightState(bool turnOff)
   {
     digitalWrite(lightPin, HIGH);
     lightOn = false;
-    GrowBot.sendMessage(String(MY_ID), "Luz desligada");
+    GrowBot.sendMessage(String(MY_ID), "Luz desligada.");
   }
   else
   {
     digitalWrite(lightPin, LOW);
     lightOn = true;
-    GrowBot.sendMessage(MY_ID, "Luz ligada");
+    GrowBot.sendMessage(MY_ID, "Luz ligada.");
   }
   hoursSinceLastLightChange = 0;
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
+
+void changeAutoIrrigationState(String chat_id, bool turnOff)
+{
+  if (turnOff)
+  {
+    autoIrrigate = false;
+    GrowBot.sendMessage(chat_id, "Irrigação automatica desligada.");
+  }
+  else
+  {
+    autoIrrigate = true;
+    GrowBot.sendMessage(chat_id, "Irrigação automatica ligada.");
+  }
+  return;
+}
+
+//-----------------------
 
 void changeLightCicle(String chat_id, String cicle)
 {
@@ -352,6 +445,30 @@ void changeLightCicle(String chat_id, String cicle)
     GrowBot.sendMessage(chat_id, "Ciclo atual: Floração(12/12)");
   }
   setTimeIntervals();
+  return;
 }
 
-//-------------------------------------------------------------------------------------------------------------
+//-----------------------
+
+void irrigate(String chat_id)
+{
+  digitalWrite(irrigationPin, HIGH);
+  delay(irrigationTimeInSeconds * 1000);
+  digitalWrite(irrigationPin, LOW);
+  hoursSinceLastIrrigation = 0;
+  irrigationMessageSent = false;
+  GrowBot.sendMessage(chat_id, "Irrigação relaizada.");
+  return;
+}
+
+//-----------------------
+
+void registerIrrigation(String chat_id)
+{
+  hoursSinceLastIrrigation = 0;
+  irrigationMessageSent = false;
+  GrowBot.sendMessage(chat_id, "Irrigação registrada.");
+  return;
+}
+
+// -----------------------
