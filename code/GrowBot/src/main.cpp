@@ -265,12 +265,12 @@ void handleNewMessages(int numNewMessages)
           registerIrrigation(GrowBot.messages[i].chat_id);
           showIrrigationOptions(GrowBot.messages[i].chat_id, false);
         }
-        else if (comando.equalsIgnoreCase("/ligaAutoIrrigacao"))
+        else if (comando.equalsIgnoreCase("/ligaAutoIrrigacao") && !autoIrrigate)
         {
           changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
         }
-        else if (comando.equalsIgnoreCase("/desligaAutoIrrigacao"))
+        else if (comando.equalsIgnoreCase("/desligaAutoIrrigacao") && autoIrrigate)
         {
           changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
