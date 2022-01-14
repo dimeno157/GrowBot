@@ -69,7 +69,7 @@ void changeLightCicle(String chat_id, String cicle);
 void irrigate(String chat_id);
 
 // Liga ou desliga a irrigação automatica
-void changeAutoIrrigationState(String chat_id, bool turnOff);
+void changeAutoIrrigationState(String chat_id, bool activate);
 
 // Registra a irrigação.
 void registerIrrigation(String chat_id);
@@ -267,25 +267,28 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/ligaAutoIrrigacao") && !autoIrrigate)
         {
-          changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
+          changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
         }
         else if (comando.equalsIgnoreCase("/desligaAutoIrrigacao") && autoIrrigate)
         {
-          changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
+          changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
         }
         else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
         {
           changeLightCicle(GrowBot.messages[i].chat_id, "veg");
+          showLightOptions(GrowBot.messages[i].chat_id);
         }
         else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
         {
           changeLightCicle(GrowBot.messages[i].chat_id, "flor");
+          showLightOptions(GrowBot.messages[i].chat_id);
         }
         else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
         {
           changeLightCicle(GrowBot.messages[i].chat_id, "ger");
+          showLightOptions(GrowBot.messages[i].chat_id);
         }
         else if (comando.equalsIgnoreCase("/luz"))
         {
@@ -412,17 +415,17 @@ void changeLightState(bool turnOff)
 
 //-----------------------
 
-void changeAutoIrrigationState(String chat_id, bool turnOff)
+void changeAutoIrrigationState(String chat_id, bool activate)
 {
-  if (turnOff)
-  {
-    autoIrrigate = false;
-    GrowBot.sendMessage(chat_id, "Irrigação automatica desligada.");
-  }
-  else
+  if (activate)
   {
     autoIrrigate = true;
     GrowBot.sendMessage(chat_id, "Irrigação automatica ligada.");
+  }
+  else
+  {
+    autoIrrigate = false;
+    GrowBot.sendMessage(chat_id, "Irrigação automatica desligada.");
   }
   return;
 }
