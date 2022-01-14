@@ -9,68 +9,77 @@
 // Numero de milisegundos em uma hora
 #define ONE_HOUR 3600000
 
-//-------------------------------------------------------------------------------------------------------------
+// VARIAVEIS --------------------------------------------------------------------------------------------------
 
-WiFiClientSecure client;                     // Cliente para conexões seguras
-UniversalTelegramBot GrowBot(TOKEN, client); // Objeto que permite a comunicação via Telegram
-String lightCicle;                           // Ciclo de luz -> 'veg', 'flor', 'ger'
-String menu;                                 // String com o menu
-String responseKeyboardMenu;                 // String do menu no teclado
-String lightMenu;                            // String com o menu da luz
-String irrigationMenu;                       // String com o enu da irrigação
+// Cliente para conexões seguras
+WiFiClientSecure client;
+// Objeto que permite a comunicação via Telegram
+UniversalTelegramBot GrowBot(TOKEN, client);
+// Ciclo de luz -> 'veg', 'flor', 'ger'
+String lightCicle;
+// String com o menu
+String menu;
+// String do menu no teclado
+String responseKeyboardMenu;
+// String com o menu da luz
+String lightMenu;
+// String com o enu da irrigação
+String irrigationMenu;
+// Message with the menu and comands options
 String optionsMessage;
-int lightPin = 27;                      // Pino da luz
-int irrigationPin = 26;                 // Pino da bomba de irrigação
-int lightPeriodsInHours[2];             // Intervalos em horas de luz ligada [0] e desligada [1]
-int irrigationIntervalInHours;          // Intervalo em horas entre regas
-int irrigationTimeInSeconds;            // Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
-unsigned long timeLast;                 // Tempo em milissegundos des de a ultima medição
-unsigned long timeNow;                  // Tempo em milissegundos medido agora
-unsigned int hoursSinceLastLightChange; // Numero de horas que se passaram des de a ultima mudança na luz
-unsigned int hoursSinceLastIrrigation;  // Numero de horas que se passaram des de a ultima irrigacao
-bool lightOn;                           // Indica se a luz está ligada
-bool sentFirstMessage;                  // Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
-bool irrigationMessageSent;             // Flag que indica se o lembrete de irrigação ja foi enviado
-bool autoIrrigate;                      // Flaq que indica se a irrigação automatica está ligada ou desligada
+// Pino da luz
+int lightPin = 27;
+// Pino da bomba de irrigação
+int irrigationPin = 26;
+// Intervalos em horas de luz ligada [0] e desligada [1]
+int lightPeriodsInHours[2];
+// Intervalo em horas entre regas
+int irrigationIntervalInHours;
+// Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
+int irrigationTimeInSeconds;
+// Tempo em milissegundos des de a ultima medição
+unsigned long timeLast;
+// Tempo em milissegundos medido agora
+unsigned long timeNow;
+// Numero de horas que se passaram des de a ultima mudança na luz
+unsigned int hoursSinceLastLightChange;
+// Numero de horas que se passaram des de a ultima irrigacao
+unsigned int hoursSinceLastIrrigation;
+// Indica se a luz está ligada
+bool lightOn;
+// Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
+bool sentFirstMessage;
+// Flag que indica se o lembrete de irrigação ja foi enviado
+bool irrigationMessageSent;
+// Flaq que indica se a irrigação automatica está ligada ou desligada
+bool autoIrrigate;
 
-//-------------------------------------------------------------------------------------------------------------
+// FUNCOES ----------------------------------------------------------------------------------------------------
 
 // Lê as novas mensagens e executa o comando correspondente.
 void handleNewMessages(int numNewMessages);
-
 // Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o cilclo atual.
 void setTimeIntervals();
-
 // Realiza a irrigação.
 void checkAndIrrigate();
-
 // Checa e altera (caso seja necessário) o estado da luz.
 void checkAndChangeLightState();
-
 // Checa se ja passou uma hora e acresce as variaveis de medição de tempo.
 void checkAndRaiseHours();
-
 // Connecta na rede WiFi.
 void connectInNetwork();
-
 // Envia o menu da luz.
 void showLightOptions(String chat_id, bool sendStatus = true);
-
 // Envia o menu da irrigação.
 void showIrrigationOptions(String chat_id, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
-
 // Muda o estado da luz.
 void changeLightState(bool turnOff);
-
 // Muda o ciclo.
 void changeLightCicle(String chat_id, String cicle);
-
 // Realiza uma irrigação.
 void irrigate(String chat_id);
-
 // Liga ou desliga a irrigação automatica
 void changeAutoIrrigationState(String chat_id, bool activate);
-
 // Registra a irrigação.
 void registerIrrigation(String chat_id);
 
