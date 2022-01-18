@@ -320,7 +320,7 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase("/coolers"))
         {
-          //TODO: Fazer lógica dos coolers
+          //TODO: Fazer lógica dos coolers.
         }
         else
         {
