@@ -17,16 +17,12 @@ WiFiClientSecure client;
 UniversalTelegramBot GrowBot(TOKEN, client);
 // Ciclo de luz -> 'veg', 'flor', 'ger'
 String lightCicle;
-// String com o menu
-String menu;
 // String do menu no teclado
 String responseKeyboardMenu;
 // String com o menu da luz
 String lightMenu;
 // String com o enu da irrigação
 String irrigationMenu;
-// Message with the menu and comands options
-String optionsMessage;
 // Pino da luz
 int lightPin = 27;
 // Pino da bomba de irrigação
@@ -60,7 +56,7 @@ bool autoIrrigate;
 void handleNewMessages(int numNewMessages);
 // Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o cilclo atual.
 void setTimeIntervals();
-// Realiza a irrigação.
+// Realiza a irrigação (auto-irrigação ativada) ou envia uma mensagem lembrando da irrigação (auto-irrigação desativada).
 void checkAndIrrigate();
 // Checa e altera (caso seja necessário) o estado da luz.
 void checkAndChangeLightState();
@@ -89,23 +85,30 @@ void setup()
 {
   client.setInsecure();
 
-  menu = "Comandos:\n";
-  menu += "\n /menu - Menu inicial.\n";
-  menu += "\n /luz - Abre o menu da luz.\n";
-  menu += "\n /ciclo - Ciclo de luz atual.\n";
-  menu += "\n /ger - Muda o ciclo atual para germinação(16/8).\n";
-  menu += "\n /veg - Muda o ciclo atual para vegetativo(18/6).\n";
-  menu += "\n /flor - Muda o ciclo atual para floração(12/12).\n";
-  menu += "\n /irrigacao - Abre o menu da irrigação.\n";
-  menu += "\n /irrigar - Realiza uma irrigação.\n";
-  menu += "\n /irrigado - Registra o momento da irrigação para enviar o lembrete no intervalo correto.\n";
-  menu += "\n /coolers - Abre o menu dos coolers.\n";
-  menu += "\n /ligaLuz - Liga a luz. \n";
-  menu += "\n /desligaLuz - Desliga.\n";
-  menu += "\n /ligaAutoIrrigacao - Liga a irrigação automática.\n";
-  menu += "\n /desligaAutoIrrigacao - Desiga a irrigação automática.\n";
+  /* 
+  ENVIAR PARA O @BotFather o comando /setcommands, 
+  escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
-  optionsMessage = "Escolha uma das opções do /menu ou envie /comandos para mostrar todos os comandos.";
+menu - Menu inicial.
+luz - Abre o menu da luz.
+ligaluz - Liga a luz. 
+desligaluz - Desliga a luz.
+ciclo - Ciclo de luz atual.
+ger - Muda para germinação(16/8).
+veg - Muda para vegetativo(18/6).
+flor - Muda para floração(12/12).
+irrigacao - Abre o menu da irrigação.
+irrigar - Realiza uma irrigação.
+irrigado - Registra o momento da irrigação.
+ligaautoirrigacao - Liga a irrigação automática.
+desligaautoirrigacao - Desiga a irrigação automática.
+coolers - Abre o menu dos coolers.
+
+  para criar o menu (que fica no canto superior esquerdo do teclado) do bot
+  Modifique de acordo com os seus comandos.
+
+*/
+
   responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
   lightCicle = "veg";
   timeLast = 0;
@@ -120,7 +123,7 @@ void setup()
 
   setTimeIntervals();
 
-  // Seta o pino da luz como saida e liga (O relé da luz liga em low)
+  // Seta o pino da luz como saida e liga (O relé da luz liga em LOW)
   pinMode(lightPin, OUTPUT);
   digitalWrite(lightPin, LOW);
 
@@ -135,20 +138,26 @@ void setup()
 
 void loop()
 {
-  // Se o wifi estiver desconectado tenta se conectar, caso contrario le os comandos no bot
+  // caso não a placa não esteja conectada a rede Wifi
   if (WiFi.status() != WL_CONNECTED)
   {
     connectInNetwork();
   }
+  // caso a placa esteja conectada a rede WIfi
   else
   {
+    // pega o numero de novas mensagens des de a ultima checagem
     int numNewMessages = GrowBot.getUpdates(GrowBot.last_message_received + 1);
+
     handleNewMessages(numNewMessages);
   }
 
   setTimeIntervals();
+
   checkAndRaiseHours();
+
   checkAndChangeLightState();
+
   checkAndIrrigate();
 }
 
@@ -248,13 +257,9 @@ void handleNewMessages(int numNewMessages)
       String comando = GrowBot.messages[i].text;
       if (GrowBot.messages[i].chat_id == MY_ID)
       {
-        if (comando.equalsIgnoreCase("/comandos"))
+        if (comando.equalsIgnoreCase("/menu"))
         {
-          GrowBot.sendMessage(GrowBot.messages[i].chat_id, menu);
-        }
-        else if (comando.equalsIgnoreCase("/menu"))
-        {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, optionsMessage, "", responseKeyboardMenu, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "", "", responseKeyboardMenu, true, true);
         }
         else if (comando.equalsIgnoreCase("/ciclo"))
         {
@@ -312,6 +317,10 @@ void handleNewMessages(int numNewMessages)
         {
           changeLightState(true);
           showLightOptions(GrowBot.messages[i].chat_id, false);
+        }
+        else if (comando.equalsIgnoreCase("/coolers"))
+        {
+          //TODO: Pensar na parte do cooler
         }
         else
         {
@@ -374,7 +383,7 @@ void showLightOptions(String chat_id, bool sendStatus)
     }
     lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
   }
-  GrowBot.sendMessageWithReplyKeyboard(chat_id, optionsMessage, "", lightMenu, true, true, true);
+  GrowBot.sendMessageWithReplyKeyboard(chat_id, "", "", lightMenu, true, true, true);
   return;
 }
 
@@ -398,7 +407,7 @@ void showIrrigationOptions(String chat_id, bool lastIrrigationInfo, bool nextIrr
   {
     irrigationMenu = "[[\"/irrigado\"],[\"/irrigar\"],[\"/ligaAutoIrrigacao\"],[\"/menu\"]]";
   }
-  GrowBot.sendMessageWithReplyKeyboard(chat_id, optionsMessage, "", irrigationMenu, true, true, true);
+  GrowBot.sendMessageWithReplyKeyboard(chat_id, "", "", irrigationMenu, true, true, true);
   return;
 }
 
