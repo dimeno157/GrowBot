@@ -81,13 +81,9 @@ void registerIrrigation(String chat_id);
 
 //-------------------------------------------------------------------------------------------------------------
 
-void setup()
-{
-  client.setInsecure();
-
-  /* 
-  ENVIAR PARA O @BotFather o comando /setcommands, 
-  escolher o bot caso haja mais de um e enviar a seguinte mensagem:
+/* 
+ENVIAR PARA O @BotFather o comando /setcommands, 
+escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
 menu - Menu inicial.
 luz - Menu da luz.
@@ -104,10 +100,14 @@ ligaautoirrigacao - Liga a irrigação automática.
 desligaautoirrigacao - Desiga a irrigação automática.
 coolers - Menu dos coolers.
 
-  para criar o menu (que fica no canto superior esquerdo do teclado) do bot
-  Modifique de acordo com os seus comandos.
-
+para criar o menu (que fica no canto superior esquerdo do teclado) do bot
+Modifique de acordo com os seus comandos.
+Os comandos não podem conter letras maiúsculas.
 */
+
+void setup()
+{
+  client.setInsecure();
 
   responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"]]";
   lightCicle = "veg";
@@ -351,7 +351,7 @@ void connectInNetwork()
     // Se ja tiver enviado a primeira mensagem significa que a conexão caiu
     if (sentFirstMessage)
     {
-      GrowBot.sendMessage(MY_ID, "Conexão reestabelecida");
+      GrowBot.sendMessage(MY_ID, "--- Conexão reestabelecida ---");
     }
     // Se não tiver enviado a primeira mensagem significa que acabou de ligar
     else
