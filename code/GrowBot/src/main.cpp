@@ -90,26 +90,26 @@ void setup()
   escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
 menu - Menu inicial.
-luz - Abre o menu da luz.
+luz - Menu da luz.
 ligaluz - Liga a luz. 
 desligaluz - Desliga a luz.
 ciclo - Ciclo de luz atual.
 ger - Muda para germinação(16/8).
 veg - Muda para vegetativo(18/6).
 flor - Muda para floração(12/12).
-irrigacao - Abre o menu da irrigação.
+irrigacao - Menu da irrigação.
 irrigar - Realiza uma irrigação.
 irrigado - Registra o momento da irrigação.
 ligaautoirrigacao - Liga a irrigação automática.
 desligaautoirrigacao - Desiga a irrigação automática.
-coolers - Abre o menu dos coolers.
+coolers - Menu dos coolers.
 
   para criar o menu (que fica no canto superior esquerdo do teclado) do bot
   Modifique de acordo com os seus comandos.
 
 */
 
-  responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"],[\"/comandos\"]]";
+  responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"]]";
   lightCicle = "veg";
   timeLast = 0;
   timeNow = 0;
@@ -279,12 +279,12 @@ void handleNewMessages(int numNewMessages)
           registerIrrigation(GrowBot.messages[i].chat_id);
           showIrrigationOptions(GrowBot.messages[i].chat_id, false);
         }
-        else if (comando.equalsIgnoreCase("/ligaAutoIrrigacao") && !autoIrrigate)
+        else if (comando.equalsIgnoreCase("/ligaautoirrigacao") && !autoIrrigate)
         {
           changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
         }
-        else if (comando.equalsIgnoreCase("/desligaAutoIrrigacao") && autoIrrigate)
+        else if (comando.equalsIgnoreCase("/desligaautoirrigacao") && autoIrrigate)
         {
           changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
           showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
@@ -308,23 +308,23 @@ void handleNewMessages(int numNewMessages)
         {
           showLightOptions(GrowBot.messages[i].chat_id);
         }
-        else if (comando.equalsIgnoreCase("/ligaLuz") && !lightOn)
+        else if (comando.equalsIgnoreCase("/ligaluz") && !lightOn)
         {
           changeLightState(false);
           showLightOptions(GrowBot.messages[i].chat_id, false);
         }
-        else if (comando.equalsIgnoreCase("/desligaLuz") && lightOn)
+        else if (comando.equalsIgnoreCase("/desligaluz") && lightOn)
         {
           changeLightState(true);
           showLightOptions(GrowBot.messages[i].chat_id, false);
         }
         else if (comando.equalsIgnoreCase("/coolers"))
         {
-          //TODO: Pensar na parte do cooler
+          //TODO: Fazer lógica dos coolers
         }
         else
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "Escolha uma das opções", "", "[[\"/menu\"],[\"/comandos\"]]", true, false, true);
+          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "", "", responseKeyboardMenu, true, false, true);
         }
       }
       else
