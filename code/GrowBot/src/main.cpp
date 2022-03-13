@@ -21,6 +21,31 @@
 // Commands strings - add any new command here
 struct Commands
 {
+  /* ENVIAR PARA O @BotFather o comando /setcommands,
+  escolher o bot caso haja mais de um e enviar a seguinte mensagem:
+
+  menu - Menu inicial.
+  status - Valores do GrowBox.
+  luz - Menu da luz.
+  ligaluz - Liga a luz.
+  desligaluz - Desliga a luz.
+  ciclo - Ciclo de luz atual.
+  ger - Muda para germinação(16/8).
+  veg - Muda para vegetativo(18/6).
+  flor - Muda para floração(12/12).
+  irrigacao - Menu da irrigação.
+  irrigar - Realiza uma irrigação.
+  irrigado - Registra o momento da irrigação.
+  ligaautoirrigacao - Liga a irrigação automática.
+  desligaautoirrigacao - Desiga a irrigação automática.
+  intervaloirrigacao - Muda o intervalo entre irrigações.
+  coolers - Menu dos coolers.
+
+  para criar o menu (que fica no canto superior esquerdo do teclado) do bot
+  Modifique de acordo com os seus comandos.
+  Os comandos não podem conter letras maiúsculas.
+  */
+
   String menu = "/menu";
   String status = "/status";
   String light = "/luz";
@@ -39,49 +64,76 @@ struct Commands
   String irrigationTime = "/tempoirrigacao";
   String coolers = "/coolers";
 } commands;
+
 // Client for secure WiFi connections
 WiFiClientSecure client;
+
 // Object for connecting in the Telegram Bot
 UniversalTelegramBot GrowBot(TOKEN, client);
+
 // light cycle -> 'veg', 'flor', 'ger'
 String lightCycle;
+
 // Main menu string
 String responseKeyboardMenu;
+
 // Light menu string
 String lightMenu;
+
 // Irrigation menu string
 String irrigationMenu;
+
 // Light pin
 int lightPin = 27;
+
 // Irrigation pump pin
 int irrigationPin = 26;
+
 // EEPROM address for the irrigation interval value
 int irrigationIntervalAddress = 0;
+
 // EEPROM address for the irrigation interval validity flag
 int irrigationIntervalFlagAddress = 1;
+
+// EEPROM address for the auto-irrigation flag
 int autoIrrigationAddress = 2;
+
+// EEPROM address for the irrigation time
 int irrigationTimeAddress = 3;
+
+// EEPROM address for the irrigation time validity flag
 int irrigationTimeFlagAddress = 4;
+
 // Intervals in hours for light on[0] and light off[1]
 int lightPeriodsInHours[2];
+
 // Interval between irrigations in days
 int irrigationIntervalInDays;
+
 // Time in seconds for the irrigation pump to be on during one irrigation
 int irrigationTimeInSeconds;
+
 // Time in milliseconds of the last time measure
 unsigned long timeLast;
+
 // Time in milliseconds measured now
 unsigned long timeNow;
+
 // Hours since last light change
 unsigned int hoursSinceLastLightChange;
+
 // Hours since last irrigation
 unsigned int hoursSinceLastIrrigation;
+
 // Indicates that the light is on
 bool lightOn;
+
 // Indicates that the GrowBox init message was already sent -> If ESP32 restars it will be false
 bool sentFirstMessage;
+
 // Indicates that the irrigation reminder message was already sent
 bool irrigationMessageSent;
+
 // Indicates that the auto irrigation is on
 bool autoIrrigate;
 
@@ -89,67 +141,75 @@ bool autoIrrigate;
 
 // Lê as novas mensagens e executa o comando correspondente.
 void handleNewMessages(int numNewMessages);
-// Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o cilclo atual.
+
+// Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o ciclo atual.
 void setLightIntervals();
+
 // Realiza a irrigação (auto-irrigação ativada) ou envia uma mensagem lembrando da irrigação (auto-irrigação desativada).
 void checkAndIrrigate();
+
 // Checa e altera (caso seja necessário) o estado da luz.
 void checkAndChangeLightState();
+
 // Checa se ja passou uma hora e acresce as variaveis de medição de tempo.
 void checkAndRaiseHours();
+
 // Conecta na rede WiFi.
 void connectInNetwork();
+
 // Envia o menu da luz.
 void showLightOptions(String chatId, bool sendStatus = true);
+
 // Envia o menu da irrigação.
 void showIrrigationOptions(String chatId, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
+
 // Muda o estado da luz.
 void changeLightState(bool turnOff);
+
 // Muda o ciclo.
 void changelightCycle(String chatId, String cycle);
+
 // Realiza uma irrigação.
 void irrigate(String chatId);
+
 // Liga ou desliga a irrigação automatica
 void changeAutoIrrigationState(String chatId, bool activate);
+
 // Registra a irrigação.
 void registerIrrigation(String chatId);
+
+// Get the irrigation interval current value
 int getIrrigationInterval();
+
+// Set the irrigation interval value and save in EEPROM
 void setIrrigationInterval(int interval);
+
+// Load the irrigation variables values
 void initIrrigationData();
+
+// Write data in an EEPROM address
 void writeEEPROM(int address, uint8_t val);
+
+// Update the irrigation interval from a given message
 void updateIrrigationInterval(String message, String chatId);
-int getValueFromMessage(String command, String message);
+
+// Update the irrigation time form a given message
 void updateIrrigationTime(String message, String chatId);
+
+// Get the irrigation time current value
 int getIrrigationTime();
+
+// Set the irrigation time value and save in EEPROM
 void setIrrigationTime(int time);
 
+// Get a value from a message:
+//
+// message = "/command N"
+//
+// With N being the returned value.
+int getValueFromMessage(String command, String message);
+
 //-------------------------------------------------------------------------------------------------------------
-
-/*
-ENVIAR PARA O @BotFather o comando /setcommands,
-escolher o bot caso haja mais de um e enviar a seguinte mensagem:
-
-menu - Menu inicial.
-status - Valores do GrowBox.
-luz - Menu da luz.
-ligaluz - Liga a luz.
-desligaluz - Desliga a luz.
-ciclo - Ciclo de luz atual.
-ger - Muda para germinação(16/8).
-veg - Muda para vegetativo(18/6).
-flor - Muda para floração(12/12).
-irrigacao - Menu da irrigação.
-irrigar - Realiza uma irrigação.
-irrigado - Registra o momento da irrigação.
-ligaautoirrigacao - Liga a irrigação automática.
-desligaautoirrigacao - Desiga a irrigação automática.
-intervaloirrigacao - Muda o intervalo entre irrigações.
-coolers - Menu dos coolers.
-
-para criar o menu (que fica no canto superior esquerdo do teclado) do bot
-Modifique de acordo com os seus comandos.
-Os comandos não podem conter letras maiúsculas.
-*/
 
 void setup()
 {
@@ -172,11 +232,11 @@ void setup()
   setLightIntervals();
   initIrrigationData();
 
-  // Seta o pino da luz como saida e liga (O relé da luz liga em LOW)
+  // Seta o pino da luz como saída e liga (O relé da luz liga em LOW)
   pinMode(lightPin, OUTPUT);
   digitalWrite(lightPin, LOW);
 
-  // Seta o pino da irrigação como saida e desliga
+  // Seta o pino da irrigação como saída e desliga
   pinMode(irrigationPin, OUTPUT);
   digitalWrite(irrigationPin, LOW);
 
@@ -187,7 +247,7 @@ void setup()
 
 void loop()
 {
-  // caso não a placa não esteja conectada a rede Wifi
+  // caso não a placa não esteja conectada a rede WiFi
   if (WiFi.status() != WL_CONNECTED)
   {
     connectInNetwork();
