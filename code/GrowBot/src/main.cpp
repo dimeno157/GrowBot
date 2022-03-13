@@ -156,7 +156,7 @@ void setup()
   client.setInsecure();
   EEPROM.begin(512);
 
-  responseKeyboardMenu = "[[\"" + String(commands.light) + "\"],[\"" + String(commands.irrigation) + "\"],[\"" + String(commands.coolers) + "\"]]";
+  responseKeyboardMenu = "[[\"" + String(commands.light) + "\"],[\"" + String(commands.irrigation) + "\"],[\"" + String(commands.coolers) + "\"],[\"" + String(commands.status) + "\"]]";
   lightCycle = "veg";
   timeLast = 0;
   timeNow = 0;
