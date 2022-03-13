@@ -1,93 +1,156 @@
-#include <Arduino.h>              //Biblioteca do PlateformIO que adiciona em C++ as funções do Arduino
-#include <WiFi.h>                 // Biblioteca para conexão WiFi no ESP32
-#include <WiFiClientSecure.h>     // Biblioteca que gera uma conexão segura na rede
-#include <UniversalTelegramBot.h> // Biblioteca com as funçoes do Bot
+// PlatformIO library that adds the Arduino library in C++
+#include <Arduino.h>
+
+// Library to connect the ESP32 in the WIFi network
+#include <WiFi.h>
+
+// Library to generate a secure network connection
+#include <WiFiClientSecure.h>
+
+// Library for the Telegram Bot
+#include <UniversalTelegramBot.h>
+
+// Library to access the ESP32 EEPROM memory
+#include <EEPROM.h>
+
+// File with the personal info - Intructions to crete in https://github.com/dimeno157/GrowBot
 #include "personal_info.h"
 
 //-------------------------------------------------------------------------------------------------------------
 
-// Numero de milisegundos em uma hora
+// Number of milliseconds in one hour
 #define ONE_HOUR 3600000
 
-// VARIAVEIS --------------------------------------------------------------------------------------------------
+// VARIABLES --------------------------------------------------------------------------------------------------
 
-// Cliente para conexões seguras
+// Commands strings - add any new command here
+struct Commands
+{
+  String menu = "/menu";
+  String light = "/luz";
+  String lightOn = "/ligaluz";
+  String lightOff = "/desligaLuz";
+  String lightCycle = "/ciclo";
+  String ger = "/ger";
+  String veg = "/veg";
+  String flor = "/flor";
+  String irrigation = "/irrigacao";
+  String irrigate = "/irrigar";
+  String irrigated = "/irrigado";
+  String autoIrrigationOn = "/ligaautoirrigacao";
+  String autoIrrigationOff = "/desligaautoirrigacao";
+  String irrigationInterval = "/intervaloirrigacao";
+  String coolers = "/coolers";
+} commands;
+
+// Client for secure WiFi connections
 WiFiClientSecure client;
-// Objeto que permite a comunicação via Telegram
+
+// Object for connecting in the Telegram Bot
 UniversalTelegramBot GrowBot(TOKEN, client);
-// Ciclo de luz -> 'veg', 'flor', 'ger'
-String lightCicle;
-// String do menu no teclado
+
+// light cycle -> 'veg', 'flor', 'ger'
+String lightCycle;
+
+// Main menu string
 String responseKeyboardMenu;
-// String com o menu da luz
+
+// Light menu string
 String lightMenu;
-// String com o enu da irrigação
+
+// Irrigation menu string
 String irrigationMenu;
-// Pino da luz
+
+// Light pin
 int lightPin = 27;
-// Pino da bomba de irrigação
+
+// Irrigation pump pin
 int irrigationPin = 26;
-// Intervalos em horas de luz ligada [0] e desligada [1]
+
+// EEPROM address for the irrigation interval value
+int irrigationIntervalAddress = 0;
+
+// EEPROM address for the irrigation interval validity flag
+int irrigationIntervalFlagAddress = 1;
+
+// Intervals in hours for light on[0] and light off[1]
 int lightPeriodsInHours[2];
-// Intervalo em horas entre regas
-int irrigationIntervalInHours;
-// Tempo em segundos que a bomba de irrigação ficará ligada em cada rega
+
+// Interval between irrigations in days
+int irrigationIntervalInDays;
+
+// Time in seconds for the irrigation pump to be on during one irrigation
 int irrigationTimeInSeconds;
-// Tempo em milissegundos des de a ultima medição
+
+// Time in milliseconds of the last time measure
 unsigned long timeLast;
-// Tempo em milissegundos medido agora
+
+// Time in milliseconds measured now
 unsigned long timeNow;
-// Numero de horas que se passaram des de a ultima mudança na luz
+
+// Hours since last light change
 unsigned int hoursSinceLastLightChange;
-// Numero de horas que se passaram des de a ultima irrigacao
+
+// Hours since last irrigation
 unsigned int hoursSinceLastIrrigation;
-// Indica se a luz está ligada
+
+// Indicates that the light is on
 bool lightOn;
-// Booleana que indica se a mensagem de GrowBox Ativa foi enviada -> Indica que a placa foi reiniciada
+
+// Indicates that the GrowBox init message was already sent -> If ESP32 restars it will be false
 bool sentFirstMessage;
-// Flag que indica se o lembrete de irrigação ja foi enviado
+
+// Indicates that the irrigation reminder message was already sent
 bool irrigationMessageSent;
-// Flaq que indica se a irrigação automatica está ligada ou desligada
+
+// Indicates that the auto irrigation is on
 bool autoIrrigate;
 
-// FUNCOES ----------------------------------------------------------------------------------------------------
+// FUNCTIONS ----------------------------------------------------------------------------------------------------
 
 // Lê as novas mensagens e executa o comando correspondente.
 void handleNewMessages(int numNewMessages);
 // Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o cilclo atual.
-void setTimeIntervals();
+void setLightIntervals();
 // Realiza a irrigação (auto-irrigação ativada) ou envia uma mensagem lembrando da irrigação (auto-irrigação desativada).
 void checkAndIrrigate();
 // Checa e altera (caso seja necessário) o estado da luz.
 void checkAndChangeLightState();
 // Checa se ja passou uma hora e acresce as variaveis de medição de tempo.
 void checkAndRaiseHours();
-// Connecta na rede WiFi.
+// Conecta na rede WiFi.
 void connectInNetwork();
 // Envia o menu da luz.
-void showLightOptions(String chat_id, bool sendStatus = true);
+void showLightOptions(String chatId, bool sendStatus = true);
 // Envia o menu da irrigação.
-void showIrrigationOptions(String chat_id, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
+void showIrrigationOptions(String chatId, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
 // Muda o estado da luz.
 void changeLightState(bool turnOff);
 // Muda o ciclo.
-void changeLightCicle(String chat_id, String cicle);
+void changelightCycle(String chatId, String cycle);
 // Realiza uma irrigação.
-void irrigate(String chat_id);
+void irrigate(String chatId);
 // Liga ou desliga a irrigação automatica
-void changeAutoIrrigationState(String chat_id, bool activate);
+void changeAutoIrrigationState(String chatId, bool activate);
 // Registra a irrigação.
-void registerIrrigation(String chat_id);
+void registerIrrigation(String chatId);
+int getIrrigationInterval();
+void setIrrigationInterval(int interval);
+void initIrrigationInterval();
+void initIrrigationInterval();
+void writeEEPROM(int address, uint8_t val);
+void updateIrrigationInterval(String message, String chatId);
+int getIrrigationIntervalFromMessage(String message, String chatId);
 
 //-------------------------------------------------------------------------------------------------------------
 
-/* 
-ENVIAR PARA O @BotFather o comando /setcommands, 
+/*
+ENVIAR PARA O @BotFather o comando /setcommands,
 escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
 menu - Menu inicial.
 luz - Menu da luz.
-ligaluz - Liga a luz. 
+ligaluz - Liga a luz.
 desligaluz - Desliga a luz.
 ciclo - Ciclo de luz atual.
 ger - Muda para germinação(16/8).
@@ -98,6 +161,7 @@ irrigar - Realiza uma irrigação.
 irrigado - Registra o momento da irrigação.
 ligaautoirrigacao - Liga a irrigação automática.
 desligaautoirrigacao - Desiga a irrigação automática.
+intervaloirrigacao - Muda o intervalo entre irrigações.
 coolers - Menu dos coolers.
 
 para criar o menu (que fica no canto superior esquerdo do teclado) do bot
@@ -108,20 +172,23 @@ Os comandos não podem conter letras maiúsculas.
 void setup()
 {
   client.setInsecure();
+  EEPROM.begin(512);
 
-  responseKeyboardMenu = "[[\"/luz\"],[\"/irrigacao\"],[\"/coolers\"]]";
-  lightCicle = "veg";
+  responseKeyboardMenu = "[[\"" + String(commands.light) + "\"],[\"" + String(commands.irrigation) + "\"],[\"" + String(commands.coolers) + "\"]]";
+  lightCycle = "veg";
   timeLast = 0;
   timeNow = 0;
   hoursSinceLastLightChange = 0;
   hoursSinceLastIrrigation = 0;
   irrigationTimeInSeconds = 15;
+  irrigationIntervalInDays = 5;
   lightOn = true;
   sentFirstMessage = false;
   irrigationMessageSent = false;
   autoIrrigate = false;
 
-  setTimeIntervals();
+  setLightIntervals();
+  initIrrigationInterval();
 
   // Seta o pino da luz como saida e liga (O relé da luz liga em LOW)
   pinMode(lightPin, OUTPUT);
@@ -152,7 +219,7 @@ void loop()
     handleNewMessages(numNewMessages);
   }
 
-  setTimeIntervals();
+  setLightIntervals();
 
   checkAndRaiseHours();
 
@@ -181,25 +248,22 @@ void checkAndRaiseHours()
 
 //-----------------------
 
-void setTimeIntervals()
+void setLightIntervals()
 {
-  if (lightCicle.equalsIgnoreCase("ger"))
+  if (lightCycle.equalsIgnoreCase("ger"))
   {
     lightPeriodsInHours[0] = 16;
     lightPeriodsInHours[1] = 8;
-    irrigationIntervalInHours = 5 * 24;
   }
-  else if (lightCicle.equalsIgnoreCase("flor"))
+  else if (lightCycle.equalsIgnoreCase("flor"))
   {
     lightPeriodsInHours[0] = 12;
     lightPeriodsInHours[1] = 12;
-    irrigationIntervalInHours = 5 * 24;
   }
   else
   {
     lightPeriodsInHours[0] = 18;
     lightPeriodsInHours[1] = 6;
-    irrigationIntervalInHours = 5 * 24;
   }
   return;
 }
@@ -208,7 +272,7 @@ void setTimeIntervals()
 
 void checkAndIrrigate()
 {
-  if (hoursSinceLastIrrigation >= irrigationIntervalInHours)
+  if (hoursSinceLastIrrigation >= irrigationIntervalInDays * 24)
   {
     if (autoIrrigate)
     {
@@ -255,81 +319,83 @@ void handleNewMessages(int numNewMessages)
     for (int i = 0; i < numNewMessages; i++)
     {
       String comando = GrowBot.messages[i].text;
-      if (GrowBot.messages[i].chat_id == MY_ID)
+      String chatId = GrowBot.messages[i].chat_id;
+
+      if (chatId == MY_ID)
       {
-        if (comando.equalsIgnoreCase("/menu"))
+        if (comando.equalsIgnoreCase(commands.menu))
         {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "", "", responseKeyboardMenu, true, true);
+          GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", responseKeyboardMenu, true);
         }
-        else if (comando.equalsIgnoreCase("/ciclo"))
+        else if (comando.equalsIgnoreCase(commands.lightCycle))
         {
-          GrowBot.sendMessage(GrowBot.messages[i].chat_id, lightCicle);
+          GrowBot.sendMessage(chatId, lightCycle);
         }
-        else if (comando.equalsIgnoreCase("/irrigacao"))
+        else if (comando.equalsIgnoreCase(commands.irrigation))
         {
-          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
+          showIrrigationOptions(chatId, true, autoIrrigate);
         }
-        else if (comando.equalsIgnoreCase("/irrigar"))
+        else if (comando.equalsIgnoreCase(commands.irrigate))
         {
-          irrigate(GrowBot.messages[i].chat_id);
-          showIrrigationOptions(GrowBot.messages[i].chat_id, false);
+          irrigate(chatId);
+          showIrrigationOptions(chatId, false);
         }
-        else if (comando.equalsIgnoreCase("/irrigado"))
+        else if (comando.equalsIgnoreCase(commands.irrigated))
         {
-          registerIrrigation(GrowBot.messages[i].chat_id);
-          showIrrigationOptions(GrowBot.messages[i].chat_id, false);
+          registerIrrigation(chatId);
+          showIrrigationOptions(chatId, false);
         }
-        else if (comando.equalsIgnoreCase("/ligaautoirrigacao") && !autoIrrigate)
+        else if (comando.indexOf(commands.irrigationInterval) >= 0)
         {
-          changeAutoIrrigationState(GrowBot.messages[i].chat_id, true);
-          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
+          updateIrrigationInterval(comando, chatId);
         }
-        else if (comando.equalsIgnoreCase("/desligaautoirrigacao") && autoIrrigate)
+        else if (comando.equalsIgnoreCase(commands.autoIrrigationOn) && !autoIrrigate)
         {
-          changeAutoIrrigationState(GrowBot.messages[i].chat_id, false);
-          showIrrigationOptions(GrowBot.messages[i].chat_id, true, autoIrrigate);
+          changeAutoIrrigationState(chatId, true);
+          showIrrigationOptions(chatId, true, autoIrrigate);
         }
-        else if (comando.equalsIgnoreCase("/veg") && lightCicle != "veg")
+        else if (comando.equalsIgnoreCase(commands.autoIrrigationOff) && autoIrrigate)
         {
-          changeLightCicle(GrowBot.messages[i].chat_id, "veg");
-          showLightOptions(GrowBot.messages[i].chat_id);
+          changeAutoIrrigationState(chatId, false);
+          showIrrigationOptions(chatId, true, autoIrrigate);
         }
-        else if (comando.equalsIgnoreCase("/flor") && lightCicle != "flor")
+        else if (comando.equalsIgnoreCase(commands.veg) && lightCycle != "veg")
         {
-          changeLightCicle(GrowBot.messages[i].chat_id, "flor");
-          showLightOptions(GrowBot.messages[i].chat_id);
+          changelightCycle(chatId, "veg");
+          showLightOptions(chatId);
         }
-        else if (comando.equalsIgnoreCase("/ger") && lightCicle != "ger")
+        else if (comando.equalsIgnoreCase(commands.flor) && lightCycle != "flor")
         {
-          changeLightCicle(GrowBot.messages[i].chat_id, "ger");
-          showLightOptions(GrowBot.messages[i].chat_id);
+          changelightCycle(chatId, "flor");
+          showLightOptions(chatId);
         }
-        else if (comando.equalsIgnoreCase("/luz"))
+        else if (comando.equalsIgnoreCase(commands.ger) && lightCycle != "ger")
         {
-          showLightOptions(GrowBot.messages[i].chat_id);
+          changelightCycle(chatId, "ger");
+          showLightOptions(chatId);
         }
-        else if (comando.equalsIgnoreCase("/ligaluz") && !lightOn)
+        else if (comando.equalsIgnoreCase(commands.light))
+        {
+          showLightOptions(chatId);
+        }
+        else if (comando.equalsIgnoreCase(commands.lightOn) && !lightOn)
         {
           changeLightState(false);
-          showLightOptions(GrowBot.messages[i].chat_id, false);
+          showLightOptions(chatId, false);
         }
-        else if (comando.equalsIgnoreCase("/desligaluz") && lightOn)
+        else if (comando.equalsIgnoreCase(commands.lightOff) && lightOn)
         {
           changeLightState(true);
-          showLightOptions(GrowBot.messages[i].chat_id, false);
+          showLightOptions(chatId, false);
         }
-        else if (comando.equalsIgnoreCase("/coolers"))
+        else if (comando.equalsIgnoreCase(commands.coolers))
         {
-          //TODO: Fazer lógica dos coolers.
-        }
-        else
-        {
-          GrowBot.sendMessageWithReplyKeyboard(GrowBot.messages[i].chat_id, "", "", responseKeyboardMenu, true, false, true);
+          // TODO: Fazer lógica dos coolers.
         }
       }
       else
       {
-        GrowBot.sendMessage(GrowBot.messages[i].chat_id, "blez...");
+        GrowBot.sendMessage(chatId, "blez...");
       }
     }
   }
@@ -357,7 +423,7 @@ void connectInNetwork()
     else
     {
       sentFirstMessage = GrowBot.sendMessage(MY_ID, "--- GrowBox ativa ---");
-      GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true, true, true);
+      GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true);
     }
   }
   return;
@@ -365,49 +431,49 @@ void connectInNetwork()
 
 //-----------------------
 
-void showLightOptions(String chat_id, bool sendStatus)
+void showLightOptions(String chatId, bool sendStatus)
 {
   if (lightOn)
   {
     if (sendStatus)
     {
-      GrowBot.sendMessage(chat_id, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
+      GrowBot.sendMessage(chatId, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
     }
-    lightMenu = "[[\"/desligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
+    lightMenu = "[[\"" + String(commands.lightOff) + "\"],[\"" + String(commands.lightCycle) + "\"],[\"" + String(commands.ger) + "\",\"" + String(commands.veg) + "\",\"" + String(commands.flor) + "\"],[\"" + String(commands.menu) + "\"]]";
   }
   else
   {
     if (sendStatus)
     {
-      GrowBot.sendMessage(chat_id, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
+      GrowBot.sendMessage(chatId, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
     }
-    lightMenu = "[[\"/ligaLuz\"],[\"/ciclo\"],[\"/ger\",\"/veg\",\"/flor\"],[\"/menu\"]]";
+    lightMenu = "[[\"" + String(commands.lightOn) + "\"],[\"" + String(commands.lightCycle) + "\"],[\"" + String(commands.ger) + "\",\"" + String(commands.veg) + "\",\"" + String(commands.flor) + "\"],[\"" + String(commands.menu) + "\"]]";
   }
-  GrowBot.sendMessageWithReplyKeyboard(chat_id, "", "", lightMenu, true, true, true);
+  GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", lightMenu, true);
   return;
 }
 
 //-----------------------
 
-void showIrrigationOptions(String chat_id, bool lastIrrigationInfo, bool nextIrrigationInfo)
+void showIrrigationOptions(String chatId, bool lastIrrigationInfo, bool nextIrrigationInfo)
 {
   if (lastIrrigationInfo)
   {
-    GrowBot.sendMessage(chat_id, "Ultima irrigação realizada ha " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.");
+    GrowBot.sendMessage(chatId, "Ultima irrigação realizada ha " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.");
   }
   if (nextIrrigationInfo)
   {
-    GrowBot.sendMessage(chat_id, String(int((irrigationIntervalInHours - hoursSinceLastIrrigation) / 24)) + " dias e " + String(int((irrigationIntervalInHours - hoursSinceLastIrrigation) % 24)) + " horas restantes até a próxima irrigação.");
+    GrowBot.sendMessage(chatId, String(int(((irrigationIntervalInDays * 24) - hoursSinceLastIrrigation) / 24)) + " dias e " + String(int(((irrigationIntervalInDays * 24) - hoursSinceLastIrrigation) % 24)) + " horas restantes até a próxima irrigação.");
   }
   if (autoIrrigate)
   {
-    irrigationMenu = "[[\"/irrigado\"],[\"/irrigar\"],[\"/desligaAutoIrrigacao\"],[\"/menu\"]]";
+    irrigationMenu = "[[\"" + String(commands.irrigated) + "\"],[\"" + String(commands.irrigate) + "\"],[\"" + String(commands.irrigationInterval) + "\"],[\"" + String(commands.autoIrrigationOff) + "\"],[\"" + String(commands.menu) + "\"]]";
   }
   else
   {
-    irrigationMenu = "[[\"/irrigado\"],[\"/irrigar\"],[\"/ligaAutoIrrigacao\"],[\"/menu\"]]";
+    irrigationMenu = "[[\"" + String(commands.irrigated) + "\"],[\"" + String(commands.irrigate) + "\"],[\"" + String(commands.irrigationInterval) + "\"],[\"" + String(commands.autoIrrigationOn) + "\"],[\"" + String(commands.menu) + "\"]]";
   }
-  GrowBot.sendMessageWithReplyKeyboard(chat_id, "", "", irrigationMenu, true, true, true);
+  GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", irrigationMenu, true);
   return;
 }
 
@@ -433,65 +499,145 @@ void changeLightState(bool turnOff)
 
 //-----------------------
 
-void changeAutoIrrigationState(String chat_id, bool activate)
+void changeAutoIrrigationState(String chatId, bool activate)
 {
   if (activate)
   {
     autoIrrigate = true;
-    GrowBot.sendMessage(chat_id, "Irrigação automatica ligada.");
+    GrowBot.sendMessage(chatId, "Irrigação automática ligada.");
   }
   else
   {
     autoIrrigate = false;
-    GrowBot.sendMessage(chat_id, "Irrigação automatica desligada.");
+    GrowBot.sendMessage(chatId, "Irrigação automática desligada.");
   }
   return;
 }
 
 //-----------------------
 
-void changeLightCicle(String chat_id, String cicle)
+void changelightCycle(String chatId, String cycle)
 {
-  if (cicle == "veg")
+  if (cycle == "veg")
   {
-    lightCicle = "veg";
-    GrowBot.sendMessage(chat_id, "Ciclo atual: Vegetativo(18/6)");
+    lightCycle = "veg";
+    GrowBot.sendMessage(chatId, "Ciclo atual: Vegetativo(18/6)");
   }
-  else if (cicle == "ger")
+  else if (cycle == "ger")
   {
-    lightCicle = "ger";
-    GrowBot.sendMessage(chat_id, "Ciclo atual: Germinação(16/8)");
+    lightCycle = "ger";
+    GrowBot.sendMessage(chatId, "Ciclo atual: Germinação(16/8)");
   }
-  else if (cicle == "flor")
+  else if (cycle == "flor")
   {
-    lightCicle = "flor";
-    GrowBot.sendMessage(chat_id, "Ciclo atual: Floração(12/12)");
+    lightCycle = "flor";
+    GrowBot.sendMessage(chatId, "Ciclo atual: Floração(12/12)");
   }
-  setTimeIntervals();
+  setLightIntervals();
   return;
 }
 
 //-----------------------
 
-void irrigate(String chat_id)
+void irrigate(String chatId)
 {
   digitalWrite(irrigationPin, HIGH);
   delay(irrigationTimeInSeconds * 1000);
   digitalWrite(irrigationPin, LOW);
   hoursSinceLastIrrigation = 0;
   irrigationMessageSent = false;
-  GrowBot.sendMessage(chat_id, "Irrigação relaizada.");
+  GrowBot.sendMessage(chatId, "Irrigação realizada.");
   return;
 }
 
 //-----------------------
 
-void registerIrrigation(String chat_id)
+void registerIrrigation(String chatId)
 {
   hoursSinceLastIrrigation = 0;
   irrigationMessageSent = false;
-  GrowBot.sendMessage(chat_id, "Irrigação registrada.");
+  GrowBot.sendMessage(chatId, "Irrigação registrada.");
   return;
 }
 
 // -----------------------
+
+int getIrrigationInterval()
+{
+  if (EEPROM.read(irrigationIntervalFlagAddress) == 1 && EEPROM.read(irrigationIntervalAddress) > 0)
+  {
+    return EEPROM.read(irrigationIntervalAddress);
+  }
+  return irrigationIntervalInDays;
+}
+
+//-----------------------
+
+void setIrrigationInterval(int interval)
+{
+  irrigationIntervalInDays = interval;
+  writeEEPROM(irrigationIntervalAddress, interval);
+  writeEEPROM(irrigationIntervalFlagAddress, 1);
+}
+
+//-----------------------
+
+void initIrrigationInterval()
+{
+  if (EEPROM.read(irrigationIntervalFlagAddress) != 1)
+  {
+    setIrrigationInterval(irrigationIntervalInDays);
+    return;
+  }
+  irrigationIntervalInDays = getIrrigationInterval();
+  return;
+}
+
+//-----------------------
+
+void writeEEPROM(int address, uint8_t val)
+{
+  EEPROM.write(address, val);
+  EEPROM.commit();
+}
+
+//-----------------------
+
+void updateIrrigationInterval(String message, String chatId)
+{
+  int interval = getIrrigationIntervalFromMessage(message, chatId);
+  if (interval == 0)
+  {
+    GrowBot.sendMessage(chatId, "Para modificar o intervalo de irrigação mande a mensagem da forma:\n\n" + String(commands.irrigationInterval) + " N\n\nN é o intervalo de irrigação em dias e deve ser maior que zero.");
+    return;
+  }
+  int oldInterval = irrigationIntervalInDays;
+  setIrrigationInterval(interval);
+  GrowBot.sendMessage(chatId, "Intervalo de irrigação alterado de " + String(oldInterval) + " dias para " + String(interval) + " dias.");
+  return;
+}
+
+//-----------------------
+
+int getIrrigationIntervalFromMessage(String message, String chatId)
+{
+  String command = String(commands.irrigationInterval) + " ";
+  if (message.length() <= command.length())
+  {
+    return 0;
+  }
+
+  int index = message.indexOf(command);
+  if (index < 0)
+  {
+    return 0;
+  }
+
+  int interval = message.substring(command.length()).toInt();
+  if (interval <= 0)
+  {
+    return 0;
+  }
+
+  return interval;
+}
