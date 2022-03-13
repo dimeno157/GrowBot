@@ -130,6 +130,7 @@ ENVIAR PARA O @BotFather o comando /setcommands,
 escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
 menu - Menu inicial.
+status - Valores do GrowBox.
 luz - Menu da luz.
 ligaluz - Liga a luz.
 desligaluz - Desliga a luz.
@@ -307,6 +308,11 @@ void handleNewMessages(int numNewMessages)
         if (comando.equalsIgnoreCase(commands.menu))
         {
           GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", responseKeyboardMenu, true);
+        }
+        else if (comando.equalsIgnoreCase(commands.status))
+        {
+          // TODO: Finish status message
+          GrowBot.sendMessage(chatId, "Status:\n\nLUZ \xF0\x9F\x92\xA1 \nCiclo de luz: " + String(lightCycle) + "\nStatus da luz: " + String(lightOn ? "ligada" : "desligada") + "\nTempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas\n\nIRRIGAÇÃO \xF0\x9F\x9A\xBF \nIntervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias\nTempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos\nStatus da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + "\n\n");
         }
         else if (comando.equalsIgnoreCase(commands.lightCycle))
         {
