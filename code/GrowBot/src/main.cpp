@@ -209,6 +209,9 @@ void setIrrigationTime(int time);
 // With N being the returned value.
 int getValueFromMessage(String command, String message);
 
+// Send the grow status message
+void sendStatusInfo(String chatId);
+
 //-------------------------------------------------------------------------------------------------------------
 
 void setup()
@@ -371,8 +374,7 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase(commands.status))
         {
-          // TODO: Finish status message
-          GrowBot.sendMessage(chatId, "Status:\n\nLUZ \xF0\x9F\x92\xA1 \nCiclo de luz: " + String(lightCycle) + "\nStatus da luz: " + String(lightOn ? "ligada" : "desligada") + "\nTempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas\n\nIRRIGAÇÃO \xF0\x9F\x9A\xBF \nIntervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias\nTempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos\nStatus da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + "\n\n");
+          sendStatusInfo(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.lightCycle))
         {
@@ -747,4 +749,27 @@ int getValueFromMessage(String command, String message)
   }
 
   return interval;
+}
+
+void sendStatusInfo(String chatId)
+{
+  String message = "Status:\n\n";
+
+  // light status
+  message += "LUZ \xF0\x9F\x92\xA1 \n";
+  message += "Ciclo de luz: " + String(lightCycle) + "\n";
+  message += "Status da luz: " + String(lightOn ? "ligada" : "desligada") + "\n";
+  message += "Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas\n";
+  // add new light status here
+  message += "\n";
+
+  // irrigation status
+  message += "IRRIGAÇÃO \xF0\x9F\x9A\xBF \n";
+  message += "Intervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias\n";
+  message += "Tempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos\n";
+  message += "Status da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + "\n";
+  // add new irrigation status here
+  message += "\n";
+
+  GrowBot.sendMessage(chatId, message);
 }
