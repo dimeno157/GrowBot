@@ -11,6 +11,8 @@
 // File with the personal info - Intructions to crete in https://github.com/dimeno157/GrowBot
 #include "personal_info.h"
 
+// TODO: Add EEPROM storage for all important variables
+
 //-------------------------------------------------------------------------------------------------------------
 
 // Number of milliseconds in one hour
@@ -211,6 +213,9 @@ int getValueFromMessage(String command, String message);
 
 // Send the grow status message
 void sendStatusInfo(String chatId);
+
+// Get a string with the light cycle complete name
+String getLightCycleName(String cycle, bool withTimes = true);
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -576,17 +581,17 @@ void changelightCycle(String chatId, String cycle)
   if (cycle == "veg")
   {
     lightCycle = "veg";
-    GrowBot.sendMessage(chatId, "Ciclo atual: Vegetativo(18/6)");
+    GrowBot.sendMessage(chatId, "Ciclo atual: " + getLightCycleName(cycle));
   }
   else if (cycle == "ger")
   {
     lightCycle = "ger";
-    GrowBot.sendMessage(chatId, "Ciclo atual: Germinação(16/8)");
+    GrowBot.sendMessage(chatId, "Ciclo atual: " + getLightCycleName(cycle));
   }
   else if (cycle == "flor")
   {
     lightCycle = "flor";
-    GrowBot.sendMessage(chatId, "Ciclo atual: Floração(12/12)");
+    GrowBot.sendMessage(chatId, "Ciclo atual: " + getLightCycleName(cycle));
   }
   setLightIntervals();
   return;
@@ -751,13 +756,15 @@ int getValueFromMessage(String command, String message)
   return interval;
 }
 
+//-----------------------
+
 void sendStatusInfo(String chatId)
 {
   String message = "Status:\n\n";
 
   // light status
   message += "LUZ \xF0\x9F\x92\xA1 \n";
-  message += "Ciclo de luz: " + String(lightCycle) + "\n";
+  message += "Ciclo de luz: " + getLightCycleName(lightCycle) + "\n";
   message += "Status da luz: " + String(lightOn ? "ligada" : "desligada") + "\n";
   message += "Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas\n";
   // add new light status here
@@ -772,4 +779,23 @@ void sendStatusInfo(String chatId)
   message += "\n";
 
   GrowBot.sendMessage(chatId, message);
+}
+
+//-----------------------
+
+String getLightCycleName(String cycle, bool withTimes)
+{
+  if (cycle == "veg")
+  {
+    return "Vegetativo" + String(withTimes ? " (18/6)" : "");
+  }
+  else if (cycle == "ger")
+  {
+    return "Germinação" + String(withTimes ? " (16/8)" : "");
+  }
+  else if (cycle == "flor")
+  {
+    return "Floração" + String(withTimes ? " (12/12)" : "");
+  }
+  return "Unknown";
 }
