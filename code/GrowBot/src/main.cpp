@@ -85,8 +85,17 @@ String lightMenu;
 // Irrigation menu string
 String irrigationMenu;
 
-// Light pin
-int lightPin = 27;
+// 0: LED Light ON
+// 1: FS Light ON
+// 2: LED Light ON
+// 3: Lights OFF
+int currentLightStep;
+
+// LED light pin
+int lightPinLED = 27;
+
+// Full Spectrum light pin
+int lightPinFS = 28;
 
 // Irrigation pump pin
 int irrigationPin = 26;
@@ -106,8 +115,12 @@ int irrigationTimeAddress = 3;
 // EEPROM address for the irrigation time validity flag
 int irrigationTimeFlagAddress = 4;
 
-// Intervals in hours for light on[0] and light off[1]
-int lightPeriodsInHours[2];
+// Light periods in hours:
+// [0] -> LED ON (first time)
+// [1] -> FS ON
+// [2] -> LED ON (second time)
+// [3] -> Light OFF
+int lightPeriodsInHours[4];
 
 // Interval between irrigations in days
 int irrigationIntervalInDays;
@@ -217,6 +230,8 @@ void sendStatusInfo(String chatId);
 // Get a string with the light cycle complete name
 String getLightCycleName(String cycle, bool withTimes = true);
 
+void setLightStep(int step);
+
 //-------------------------------------------------------------------------------------------------------------
 
 void setup()
@@ -236,13 +251,14 @@ void setup()
   sentFirstMessage = false;
   irrigationMessageSent = false;
   autoIrrigate = false;
+  currentLightStep = 0;
 
   setLightIntervals();
   initIrrigationData();
 
   // Seta o pino da luz como saída e liga (O relé da luz liga em LOW)
-  pinMode(lightPin, OUTPUT);
-  digitalWrite(lightPin, LOW);
+  pinMode(lightPinLED, OUTPUT);
+  digitalWrite(lightPinLED, LOW);
 
   // Seta o pino da irrigação como saída e desliga
   pinMode(irrigationPin, OUTPUT);
@@ -300,21 +316,19 @@ void checkAndRaiseHours()
 
 void setLightIntervals()
 {
+  int timeOn = 18;
   if (lightCycle.equalsIgnoreCase("ger"))
   {
-    lightPeriodsInHours[0] = 16;
-    lightPeriodsInHours[1] = 8;
+    timeOn = 16;
   }
   else if (lightCycle.equalsIgnoreCase("flor"))
   {
-    lightPeriodsInHours[0] = 12;
-    lightPeriodsInHours[1] = 12;
+    timeOn = 12;
   }
-  else
-  {
-    lightPeriodsInHours[0] = 18;
-    lightPeriodsInHours[1] = 6;
-  }
+  lightPeriodsInHours[0] = int(timeOn / 3);
+  lightPeriodsInHours[1] = timeOn - (2 * lightPeriodsInHours[0]);
+  lightPeriodsInHours[2] = lightPeriodsInHours[0];
+  lightPeriodsInHours[3] = 24 - timeOn;
   return;
 }
 
@@ -341,20 +355,11 @@ void checkAndIrrigate()
 
 void checkAndChangeLightState()
 {
-  // Liga a luz caso ela esteja desligada e ja tiver dado o tempo para ligar
-  if (!lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[1])
+  // if the current light step period end is reached
+  if (hoursSinceLastLightChange >= lightPeriodsInHours[currentLightStep])
   {
-    digitalWrite(lightPin, LOW);
-    GrowBot.sendMessage(MY_ID, String("Luz ligada após ") + String(hoursSinceLastLightChange) + String(" horas"));
-    lightOn = true;
-    hoursSinceLastLightChange = 0;
-  }
-  // Liga a luz caso ela esteja ligada e ja tiver dado o tempo para desligar
-  else if (lightOn && hoursSinceLastLightChange >= lightPeriodsInHours[0])
-  {
-    digitalWrite(lightPin, HIGH);
-    GrowBot.sendMessage(MY_ID, String("Luz desligada após ") + String(hoursSinceLastLightChange) + String(" horas"));
-    lightOn = false;
+    // go to the net light step (0 -> 1 -> 2 -> 3 -> 0)
+    setLightStep((currentLightStep + 1) % 4);
     hoursSinceLastLightChange = 0;
   }
   return;
@@ -541,21 +546,47 @@ void changeLightState(bool turnOff)
 {
   if (turnOff)
   {
-    digitalWrite(lightPin, HIGH);
-    lightOn = false;
-    GrowBot.sendMessage(String(MY_ID), "Luz desligada.");
+    setLightStep(3);
   }
   else
   {
-    digitalWrite(lightPin, LOW);
-    lightOn = true;
-    GrowBot.sendMessage(MY_ID, "Luz ligada.");
+    setLightStep(0);
   }
   hoursSinceLastLightChange = 0;
   return;
 }
 
 //-----------------------
+
+void setLightStep(int step)
+{
+  currentLightStep = step;
+  switch (currentLightStep)
+  {
+  case 0:
+    digitalWrite(lightPinLED, LOW);
+    digitalWrite(lightPinFS, HIGH);
+    GrowBot.sendMessage(MY_ID, String("Luz ligada após ") + String(hoursSinceLastLightChange) + String(" horas"));
+    lightOn = true;
+    break;
+  case 1:
+    digitalWrite(lightPinLED, HIGH);
+    digitalWrite(lightPinFS, LOW);
+    break;
+  case 2:
+    digitalWrite(lightPinLED, LOW);
+    digitalWrite(lightPinFS, HIGH);
+    break;
+  case 3:
+    digitalWrite(lightPinLED, HIGH);
+    digitalWrite(lightPinFS, HIGH);
+    GrowBot.sendMessage(MY_ID, String("Luz desligada após ") + String(hoursSinceLastLightChange) + String(" horas"));
+    lightOn = false;
+    break;
+  default:
+    break;
+  }
+}
 
 void changeAutoIrrigationState(String chatId, bool activate)
 {
