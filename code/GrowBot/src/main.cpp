@@ -571,7 +571,7 @@ void setLightStep(int step)
     lightOn = true;
     break;
   case 1:
-    digitalWrite(lightPinLED, HIGH);
+    digitalWrite(lightPinLED, LOW);
     digitalWrite(lightPinFS, LOW);
     break;
   case 2:
