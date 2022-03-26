@@ -27,7 +27,7 @@ struct Commands
   escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
   menu - Menu inicial.
-  status - Valores do GrowBox.
+  status - Status do GrowBox.
   luz - Menu da luz.
   ligaluz - Liga a luz.
   desligaluz - Desliga a luz.
@@ -41,6 +41,7 @@ struct Commands
   ligaautoirrigacao - Liga a irrigação automática.
   desligaautoirrigacao - Desiga a irrigação automática.
   intervaloirrigacao - Muda o intervalo entre irrigações.
+  tempoirrigacao - Muda o tempo de uma irrigação
   coolers - Menu dos coolers.
 
   para criar o menu (que fica no canto superior esquerdo do teclado) do bot
@@ -95,7 +96,7 @@ int currentLightStep;
 int lightPinLED = 27;
 
 // Full Spectrum light pin
-int lightPinFS = 28;
+int lightPinFS = 25;
 
 // Irrigation pump pin
 int irrigationPin = 26;
@@ -240,6 +241,7 @@ void setup()
   EEPROM.begin(512);
 
   responseKeyboardMenu = "[[\"" + String(commands.light) + "\"],[\"" + String(commands.irrigation) + "\"],[\"" + String(commands.coolers) + "\"],[\"" + String(commands.status) + "\"]]";
+  currentLightStep = 0;
   lightCycle = "veg";
   timeLast = 0;
   timeNow = 0;
@@ -251,7 +253,6 @@ void setup()
   sentFirstMessage = false;
   irrigationMessageSent = false;
   autoIrrigate = false;
-  currentLightStep = 0;
 
   setLightIntervals();
   initIrrigationData();
@@ -580,7 +581,7 @@ void setLightStep(int step)
   case 3:
     digitalWrite(lightPinLED, HIGH);
     digitalWrite(lightPinFS, HIGH);
-    GrowBot.sendMessage(MY_ID, String("Luz desligada após ") + String(hoursSinceLastLightChange) + String(" horas"));
+    GrowBot.sendMessage(MY_ID, String("Luz desligada após ") + String(3 * hoursSinceLastLightChange) + String(" horas"));
     lightOn = false;
     break;
   default:
