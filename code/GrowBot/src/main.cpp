@@ -257,9 +257,13 @@ void setup()
   setLightIntervals();
   initIrrigationData();
 
-  // Seta o pino da luz como saída e liga (O relé da luz liga em LOW)
+  // Seta o pino da luz LED como saída e liga (O relé da luz liga em LOW)
   pinMode(lightPinLED, OUTPUT);
   digitalWrite(lightPinLED, LOW);
+
+  // Seta o pino da luz FS como saída e desligaliga (O relé da luz liga em LOW)
+  pinMode(lightPinFS, OUTPUT);
+  digitalWrite(lightPinFS, HIGH);
 
   // Seta o pino da irrigação como saída e desliga
   pinMode(irrigationPin, OUTPUT);
