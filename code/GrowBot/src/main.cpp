@@ -11,8 +11,6 @@
 // File with the personal info - Intructions to crete in https://github.com/dimeno157/GrowBot
 #include "personal_info.h"
 
-// TODO: Add EEPROM storage for all important variables
-
 //-------------------------------------------------------------------------------------------------------------
 
 // Number of milliseconds in one hour
@@ -20,13 +18,9 @@
 
 // VARIABLES --------------------------------------------------------------------------------------------------
 
-// Commands strings - add any new command here
-struct Commands
-{
-  /* ENVIAR PARA O @BotFather o comando /setcommands,
+/* ENVIAR PARA O @BotFather o comando /setcommands,
   escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
-  menu - Menu inicial.
   status - Status do GrowBox.
   luz - Menu da luz.
   ligaluz - Liga a luz.
@@ -47,9 +41,10 @@ struct Commands
   para criar o menu (que fica no canto superior esquerdo do teclado) do bot
   Modifique de acordo com os seus comandos.
   Os comandos não podem conter letras maiúsculas.
-  */
-
-  String menu = "/menu";
+*/
+// Commands strings - add any new command here
+struct Commands
+{
   String status = "/status";
   String light = "/luz";
   String lightOn = "/ligaluz";
@@ -66,6 +61,7 @@ struct Commands
   String irrigationInterval = "/intervaloirrigacao";
   String irrigationTime = "/tempoirrigacao";
   String coolers = "/coolers";
+
 } commands;
 
 // Client for secure WiFi connections
@@ -100,6 +96,9 @@ int lightPinFS = 25;
 
 // Irrigation pump pin
 int irrigationPin = 26;
+
+// Cooler pin
+int coolerPin = 33;
 
 // EEPROM address for the irrigation interval value
 int irrigationIntervalAddress = 0;
@@ -174,7 +173,7 @@ void checkAndRaiseHours();
 void connectInNetwork();
 
 // Envia o menu da luz.
-void showLightOptions(String chatId, bool sendStatus = true);
+void showLightOptions(String chatId);
 
 // Envia o menu da irrigação.
 void showIrrigationOptions(String chatId, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
@@ -240,7 +239,6 @@ void setup()
   client.setInsecure();
   EEPROM.begin(512);
 
-  responseKeyboardMenu = "[[\"" + String(commands.light) + "\"],[\"" + String(commands.irrigation) + "\"],[\"" + String(commands.coolers) + "\"],[\"" + String(commands.status) + "\"]]";
   currentLightStep = 0;
   lightCycle = "veg";
   timeLast = 0;
@@ -261,13 +259,17 @@ void setup()
   pinMode(lightPinLED, OUTPUT);
   digitalWrite(lightPinLED, LOW);
 
-  // Seta o pino da luz FS como saída e desligaliga (O relé da luz liga em LOW)
+  // Seta o pino da luz FS como saída e desliga (O relé da luz liga em LOW)
   pinMode(lightPinFS, OUTPUT);
   digitalWrite(lightPinFS, HIGH);
 
   // Seta o pino da irrigação como saída e desliga
   pinMode(irrigationPin, OUTPUT);
   digitalWrite(irrigationPin, LOW);
+
+  // Sets the cooler control pin as output
+  pinMode(coolerPin, OUTPUT);
+  digitalWrite(coolerPin, HIGH);
 
   connectInNetwork();
 }
@@ -286,7 +288,6 @@ void loop()
   {
     // pega o numero de novas mensagens des de a ultima checagem
     int numNewMessages = GrowBot.getUpdates(GrowBot.last_message_received + 1);
-
     handleNewMessages(numNewMessages);
   }
 
@@ -301,6 +302,7 @@ void loop()
 
 //-------------------------------------------------------------------------------------------------------------
 
+// TODO: Change so that each section (light, irrigation and coolers) have their own time last
 void checkAndRaiseHours()
 {
   timeNow = millis();
@@ -330,10 +332,10 @@ void setLightIntervals()
   {
     timeOn = 12;
   }
-  lightPeriodsInHours[0] = int(timeOn / 3);
-  lightPeriodsInHours[1] = timeOn - (2 * lightPeriodsInHours[0]);
-  lightPeriodsInHours[2] = lightPeriodsInHours[0];
-  lightPeriodsInHours[3] = 24 - timeOn;
+  lightPeriodsInHours[0] = int(timeOn / 3);                       // LED ON - FS OFF
+  lightPeriodsInHours[1] = timeOn - (2 * lightPeriodsInHours[0]); // LED ON - FS ON
+  lightPeriodsInHours[2] = lightPeriodsInHours[0];                // LED ON - FS OFF
+  lightPeriodsInHours[3] = 24 - timeOn;                           // LED OFF - FS OFF
   return;
 }
 
@@ -383,11 +385,7 @@ void handleNewMessages(int numNewMessages)
 
       if (chatId == MY_ID)
       {
-        if (comando.equalsIgnoreCase(commands.menu))
-        {
-          GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", responseKeyboardMenu, true);
-        }
-        else if (comando.equalsIgnoreCase(commands.status))
+        if (comando.equalsIgnoreCase(commands.status))
         {
           sendStatusInfo(chatId);
         }
@@ -449,16 +447,17 @@ void handleNewMessages(int numNewMessages)
         else if (comando.equalsIgnoreCase(commands.lightOn) && !lightOn)
         {
           changeLightState(false);
-          showLightOptions(chatId, false);
+          showLightOptions(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.lightOff) && lightOn)
         {
           changeLightState(true);
-          showLightOptions(chatId, false);
+          showLightOptions(chatId);
         }
+        // TODO: Turn the cooler on and off - change that to specific commands
         else if (comando.equalsIgnoreCase(commands.coolers))
         {
-          // TODO: Fazer lógica dos coolers.
+          digitalWrite(coolerPin, !digitalRead(coolerPin));
         }
       }
       else
@@ -491,7 +490,7 @@ void connectInNetwork()
     else
     {
       sentFirstMessage = GrowBot.sendMessage(MY_ID, "--- GrowBox ativa ---");
-      GrowBot.sendMessageWithReplyKeyboard(MY_ID, "Escolha uma das opções", "", responseKeyboardMenu, true);
+      sendStatusInfo(MY_ID);
     }
   }
   return;
@@ -499,25 +498,16 @@ void connectInNetwork()
 
 //-----------------------
 
-void showLightOptions(String chatId, bool sendStatus)
+void showLightOptions(String chatId)
 {
   if (lightOn)
   {
-    if (sendStatus)
-    {
-      GrowBot.sendMessage(chatId, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
-    }
-    lightMenu = "[[\"" + String(commands.lightOff) + "\"],[\"" + String(commands.lightCycle) + "\"],[\"" + String(commands.ger) + "\",\"" + String(commands.veg) + "\",\"" + String(commands.flor) + "\"],[\"" + String(commands.menu) + "\"]]";
+    GrowBot.sendMessage(chatId, "Luz ligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[0] - hoursSinceLastLightChange) + " para desligar");
   }
   else
   {
-    if (sendStatus)
-    {
-      GrowBot.sendMessage(chatId, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
-    }
-    lightMenu = "[[\"" + String(commands.lightOn) + "\"],[\"" + String(commands.lightCycle) + "\"],[\"" + String(commands.ger) + "\",\"" + String(commands.veg) + "\",\"" + String(commands.flor) + "\"],[\"" + String(commands.menu) + "\"]]";
+    GrowBot.sendMessage(chatId, "Luz desligada ha " + String(hoursSinceLastLightChange) + " horas\nRestam " + String(lightPeriodsInHours[1] - hoursSinceLastLightChange) + " para ligar");
   }
-  GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", lightMenu, true);
   return;
 }
 
@@ -533,15 +523,6 @@ void showIrrigationOptions(String chatId, bool lastIrrigationInfo, bool nextIrri
   {
     GrowBot.sendMessage(chatId, String(int(((irrigationIntervalInDays * 24) - hoursSinceLastIrrigation) / 24)) + " dias e " + String(int(((irrigationIntervalInDays * 24) - hoursSinceLastIrrigation) % 24)) + " horas restantes até a próxima irrigação.");
   }
-  if (autoIrrigate)
-  {
-    irrigationMenu = "[[\"" + String(commands.irrigated) + "\"],[\"" + String(commands.irrigate) + "\"],[\"" + String(commands.irrigationInterval) + "\"],[\"" + String(commands.irrigationTime) + "\"],[\"" + String(commands.autoIrrigationOff) + "\"],[\"" + String(commands.menu) + "\"]]";
-  }
-  else
-  {
-    irrigationMenu = "[[\"" + String(commands.irrigated) + "\"],[\"" + String(commands.irrigate) + "\"],[\"" + String(commands.irrigationInterval) + "\"],[\"" + String(commands.irrigationTime) + "\"],[\"" + String(commands.autoIrrigationOn) + "\"],[\"" + String(commands.menu) + "\"]]";
-  }
-  GrowBot.sendMessageWithReplyKeyboard(chatId, "Escolha uma das opções", "", irrigationMenu, true);
   return;
 }
 
@@ -592,6 +573,8 @@ void setLightStep(int step)
     break;
   }
 }
+
+//-----------------------
 
 void changeAutoIrrigationState(String chatId, bool activate)
 {
@@ -800,19 +783,24 @@ void sendStatusInfo(String chatId)
 
   // light status
   message += "LUZ \xF0\x9F\x92\xA1 \n";
-  message += "Ciclo de luz: " + getLightCycleName(lightCycle) + "\n";
-  message += "Status da luz: " + String(lightOn ? "ligada" : "desligada") + "\n";
-  message += "Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas\n";
+  message += "Ciclo de luz: " + getLightCycleName(lightCycle) + ".\n";
+  message += "Status da luz: " + String(lightOn ? "ligada" : "desligada") + ".\n";
+  message += "Etapa de iluminação: " + String(currentLightStep) + ".\n";
+  message += "Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas.\n";
   // add new light status here
   message += "\n";
 
   // irrigation status
   message += "IRRIGAÇÃO \xF0\x9F\x9A\xBF \n";
-  message += "Intervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias\n";
-  message += "Tempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos\n";
-  message += "Status da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + "\n";
+  message += "Intervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias.\n";
+  message += "Tempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos.\n";
+  message += "Status da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + ".\n";
+  message += "Tempo dês de a ultima irrigação: " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.\n";
   // add new irrigation status here
   message += "\n";
+
+  message += "VENTILAÇÃO \xF0\x9F\x86\x92 \n";
+  // message += "Status da ventilação: " + String() + ".\n";
 
   GrowBot.sendMessage(chatId, message);
 }
