@@ -1,4 +1,4 @@
-// f permission error: sudo chmod -R 777 /dev/ttyUSB0
+// for permission error when uploading to ESP32: sudo chmod -R 777 /dev/ttyUSB0
 
 // PlatformIO library that adds the Arduino library in C++
 #include <Arduino.h>
