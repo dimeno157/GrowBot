@@ -1,3 +1,5 @@
+// f permission error: sudo chmod -R 777 /dev/ttyUSB0
+
 // PlatformIO library that adds the Arduino library in C++
 #include <Arduino.h>
 // Library to connect the ESP32 in the WIFi network
@@ -8,35 +10,39 @@
 #include <UniversalTelegramBot.h>
 // Library to access the ESP32 EEPROM memory
 #include <EEPROM.h>
-// File with the personal info - Intructions to crete in https://github.com/dimeno157/GrowBot
+// File with the personal info - Instructions to crete in https://github.com/dimeno157/GrowBot
 #include "personal_info.h"
 
 //-------------------------------------------------------------------------------------------------------------
 
 // Number of milliseconds in one hour
 #define ONE_HOUR 3600000
+#define OFF 0
+#define ON 1
 
 // VARIABLES --------------------------------------------------------------------------------------------------
 
 /* ENVIAR PARA O @BotFather o comando /setcommands,
   escolher o bot caso haja mais de um e enviar a seguinte mensagem:
 
-  status - Status do GrowBox.
-  luz - Menu da luz.
+  status - Status gerais do GrowBox.
+  luz - Status da luz.
   ligaluz - Liga a luz.
   desligaluz - Desliga a luz.
   ciclo - Ciclo de luz atual.
   ger - Muda para germinação(16/8).
   veg - Muda para vegetativo(18/6).
   flor - Muda para floração(12/12).
-  irrigacao - Menu da irrigação.
+  irrigacao - Status da irrigação.
   irrigar - Realiza uma irrigação.
   irrigado - Registra o momento da irrigação.
   ligaautoirrigacao - Liga a irrigação automática.
   desligaautoirrigacao - Desiga a irrigação automática.
   intervaloirrigacao - Muda o intervalo entre irrigações.
   tempoirrigacao - Muda o tempo de uma irrigação
-  coolers - Menu dos coolers.
+  ventilacao - Status da ventilação.
+  ligaventilacao - Liga a ventilação.
+  desligaventilacao - Desliga a ventilação.
 
   para criar o menu (que fica no canto superior esquerdo do teclado) do bot
   Modifique de acordo com os seus comandos.
@@ -60,7 +66,9 @@ struct Commands
   String autoIrrigationOff = "/desligaautoirrigacao";
   String irrigationInterval = "/intervaloirrigacao";
   String irrigationTime = "/tempoirrigacao";
-  String coolers = "/coolers";
+  String ventilation = "/ventilacao";
+  String ventilationOn = "/ligaventilacao";
+  String ventilationOff = "/desligaventilacao";
 
 } commands;
 
@@ -143,7 +151,7 @@ unsigned int hoursSinceLastIrrigation;
 // Indicates that the light is on
 bool lightOn;
 
-// Indicates that the GrowBox init message was already sent -> If ESP32 restars it will be false
+// Indicates that the GrowBox init message was already sent -> If ESP32 restarts it will be false
 bool sentFirstMessage;
 
 // Indicates that the irrigation reminder message was already sent
@@ -152,12 +160,14 @@ bool irrigationMessageSent;
 // Indicates that the auto irrigation is on
 bool autoIrrigate;
 
+bool ventilationOn;
+
 // FUNCTIONS ----------------------------------------------------------------------------------------------------
 
 // Lê as novas mensagens e executa o comando correspondente.
 void handleNewMessages(int numNewMessages);
 
-// Seta as variaveis dos períodos de tempo (luz, irrigação, etc) de acordo com o ciclo atual.
+// Seta as variáveis dos períodos de tempo (luz, irrigação, etc) de acordo com o ciclo atual.
 void setLightIntervals();
 
 // Realiza a irrigação (auto-irrigação ativada) ou envia uma mensagem lembrando da irrigação (auto-irrigação desativada).
@@ -166,7 +176,7 @@ void checkAndIrrigate();
 // Checa e altera (caso seja necessário) o estado da luz.
 void checkAndChangeLightState();
 
-// Checa se ja passou uma hora e acresce as variaveis de medição de tempo.
+// Checa se ja passou uma hora e acresce as variáveis de medição de tempo.
 void checkAndRaiseHours();
 
 // Conecta na rede WiFi.
@@ -179,15 +189,15 @@ void showLightOptions(String chatId);
 void showIrrigationOptions(String chatId, bool lastIrrigationInfo = true, bool nextIrrigationInfo = true);
 
 // Muda o estado da luz.
-void changeLightState(bool turnOff);
+void changeLightState(int state);
 
 // Muda o ciclo.
-void changelightCycle(String chatId, String cycle);
+void changeLightCycle(String chatId, String cycle);
 
 // Realiza uma irrigação.
 void irrigate(String chatId);
 
-// Liga ou desliga a irrigação automatica
+// Liga ou desliga a irrigação automática
 void changeAutoIrrigationState(String chatId, bool activate);
 
 // Registra a irrigação.
@@ -232,6 +242,10 @@ String getLightCycleName(String cycle, bool withTimes = true);
 
 void setLightStep(int step);
 
+void changeVentilationStatus(int status);
+
+void sendVentilationStatus(String chatId);
+
 //-------------------------------------------------------------------------------------------------------------
 
 void setup()
@@ -248,6 +262,7 @@ void setup()
   irrigationTimeInSeconds = 15;
   irrigationIntervalInDays = 5;
   lightOn = true;
+  ventilationOn = true;
   sentFirstMessage = false;
   irrigationMessageSent = false;
   autoIrrigate = false;
@@ -267,7 +282,7 @@ void setup()
   pinMode(irrigationPin, OUTPUT);
   digitalWrite(irrigationPin, LOW);
 
-  // Sets the cooler control pin as output
+  // Sets the ventilation control pin as output and sets it to high
   pinMode(coolerPin, OUTPUT);
   digitalWrite(coolerPin, HIGH);
 
@@ -427,17 +442,17 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase(commands.veg) && lightCycle != "veg")
         {
-          changelightCycle(chatId, "veg");
+          changeLightCycle(chatId, "veg");
           showLightOptions(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.flor) && lightCycle != "flor")
         {
-          changelightCycle(chatId, "flor");
+          changeLightCycle(chatId, "flor");
           showLightOptions(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.ger) && lightCycle != "ger")
         {
-          changelightCycle(chatId, "ger");
+          changeLightCycle(chatId, "ger");
           showLightOptions(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.light))
@@ -446,23 +461,28 @@ void handleNewMessages(int numNewMessages)
         }
         else if (comando.equalsIgnoreCase(commands.lightOn) && !lightOn)
         {
-          changeLightState(false);
+          changeLightState(ON);
           showLightOptions(chatId);
         }
         else if (comando.equalsIgnoreCase(commands.lightOff) && lightOn)
         {
-          changeLightState(true);
+          changeLightState(OFF);
           showLightOptions(chatId);
         }
-        // TODO: Turn the cooler on and off - change that to specific commands
-        else if (comando.equalsIgnoreCase(commands.coolers))
+        else if (comando.equalsIgnoreCase(commands.ventilation))
         {
-          digitalWrite(coolerPin, !digitalRead(coolerPin));
+          sendVentilationStatus(chatId);
         }
-      }
-      else
-      {
-        GrowBot.sendMessage(chatId, "blez...");
+        else if (comando.equalsIgnoreCase(commands.ventilationOn))
+        {
+          changeVentilationStatus(ON);
+          sendVentilationStatus(chatId);
+        }
+        else if (comando.equalsIgnoreCase(commands.ventilationOff))
+        {
+          changeVentilationStatus(OFF);
+          sendVentilationStatus(chatId);
+        }
       }
     }
   }
@@ -528,15 +548,18 @@ void showIrrigationOptions(String chatId, bool lastIrrigationInfo, bool nextIrri
 
 //-----------------------
 
-void changeLightState(bool turnOff)
+void changeLightState(int state)
 {
-  if (turnOff)
+  switch (state)
   {
-    setLightStep(3);
-  }
-  else
-  {
+  case ON:
     setLightStep(0);
+    break;
+  case OFF:
+    setLightStep(3);
+    break;
+  default:
+    break;
   }
   hoursSinceLastLightChange = 0;
   return;
@@ -595,7 +618,7 @@ void changeAutoIrrigationState(String chatId, bool activate)
 
 //-----------------------
 
-void changelightCycle(String chatId, String cycle)
+void changeLightCycle(String chatId, String cycle)
 {
   if (cycle == "veg")
   {
@@ -754,19 +777,19 @@ void updateIrrigationTime(String message, String chatId)
 
 int getValueFromMessage(String command, String message)
 {
-  String formatedCommand = String(command) + " ";
-  if (message.length() <= formatedCommand.length())
+  String formattedCommand = String(command) + " ";
+  if (message.length() <= formattedCommand.length())
   {
     return 0;
   }
 
-  int index = message.indexOf(formatedCommand);
+  int index = message.indexOf(formattedCommand);
   if (index < 0)
   {
     return 0;
   }
 
-  int interval = message.substring(formatedCommand.length()).toInt();
+  int interval = message.substring(formattedCommand.length()).toInt();
   if (interval <= 0)
   {
     return 0;
@@ -783,24 +806,24 @@ void sendStatusInfo(String chatId)
 
   // light status
   message += "LUZ \xF0\x9F\x92\xA1 \n";
-  message += "Ciclo de luz: " + getLightCycleName(lightCycle) + ".\n";
-  message += "Status da luz: " + String(lightOn ? "ligada" : "desligada") + ".\n";
-  message += "Etapa de iluminação: " + String(currentLightStep) + ".\n";
-  message += "Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas.\n";
+  message += "- Ciclo de luz: " + getLightCycleName(lightCycle) + ".\n";
+  message += "- Status da luz: " + String(lightOn ? "ligada" : "desligada") + ".\n";
+  message += "- Etapa de iluminação: " + String(currentLightStep) + ".\n";
+  message += "- Tempo dês de a ultima mudança na luz: " + String(hoursSinceLastLightChange) + " horas.\n";
   // add new light status here
   message += "\n";
 
   // irrigation status
   message += "IRRIGAÇÃO \xF0\x9F\x9A\xBF \n";
-  message += "Intervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias.\n";
-  message += "Tempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos.\n";
-  message += "Status da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + ".\n";
-  message += "Tempo dês de a ultima irrigação: " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.\n";
+  message += "- Intervalo entre irrigações: " + String(irrigationIntervalInDays) + " dias.\n";
+  message += "- Tempo de irrigação: " + String(irrigationTimeInSeconds) + " segundos.\n";
+  message += "- Status da auto-irrigação: " + String(autoIrrigate ? "ligada" : "desligada") + ".\n";
+  message += "- Tempo dês de a ultima irrigação: " + String(int(hoursSinceLastIrrigation / 24)) + " dias e " + String(int(hoursSinceLastIrrigation % 24)) + " horas.\n";
   // add new irrigation status here
   message += "\n";
 
   message += "VENTILAÇÃO \xF0\x9F\x86\x92 \n";
-  // message += "Status da ventilação: " + String() + ".\n";
+  message += "- Status da ventilação: " + String(ventilationOn ? "ligada" : "desligada") + ".\n";
 
   GrowBot.sendMessage(chatId, message);
 }
@@ -822,4 +845,31 @@ String getLightCycleName(String cycle, bool withTimes)
     return "Floração" + String(withTimes ? " (12/12)" : "");
   }
   return "Unknown";
+}
+
+//-----------------------
+
+void changeVentilationStatus(int status)
+{
+  switch (status)
+  {
+  case ON:
+    digitalWrite(coolerPin, HIGH);
+    ventilationOn = true;
+    break;
+  case OFF:
+    digitalWrite(coolerPin, LOW);
+    ventilationOn = false;
+    break;
+  default:
+    break;
+  }
+}
+
+//-----------------------
+
+void sendVentilationStatus(String chatId)
+{
+  String message = "Ventilação " + String(ventilationOn ? "ligada" : "desligada") + ".";
+  GrowBot.sendMessage(chatId, message);
 }
